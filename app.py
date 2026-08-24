@@ -122,7 +122,7 @@ with st.sidebar:
     )
 
 
-@st.cache_resource(show_spinner="🧠 学習済みモデルを読み込んでいます…")
+@st.cache_resource(show_spinner="学習済みモデルを読み込んでいます…")
 def get_model():
     return load_model()
 
@@ -137,7 +137,7 @@ except FileNotFoundError:
     st.stop()
 
 
-@st.cache_data(show_spinner="📄 従業員データを読み込んでいます…")
+@st.cache_data(show_spinner="従業員データを読み込んでいます…")
 def get_dataset():
     return load_data(DATA_PATH)
 
@@ -153,7 +153,7 @@ if dataset_issues:
     st.stop()
 
 
-@st.cache_data(show_spinner="📊 全従業員のリスクスコアを計算しています…")
+@st.cache_data(show_spinner="全従業員のリスクスコアを計算しています…")
 def get_scored_employees() -> pd.DataFrame:
     """全従業員分のリスクスコアを一括計算する（全体リスク一覧・デモ選定の両方で使用）。"""
     X_all = transform_with_encoders(df, encoders, feature_names)
@@ -185,7 +185,7 @@ def pick_demo_employees(scored: pd.DataFrame) -> dict:
 demo_employees = pick_demo_employees(scored_df)
 
 tab1, tab2, tab3 = st.tabs(
-    ["🎯 全体リスク一覧 & ターゲット選定", "🗂️ 個別詳細カルテ", "🤖 AIアクションプラン"]
+    ["全体リスク一覧 & ターゲット選定", "個別詳細カルテ", "AIによる提案"]
 )
 
 with tab1:
@@ -244,7 +244,7 @@ risk_color = RISK_TIER_COLOR[risk_tier]
 with tab2:
     st.caption(f"選択中の従業員: **#{selected_id}**（タブ1で変更できます）")
 
-    st.subheader("📊 リスク分析結果")
+    st.subheader("リスク分析結果")
     with st.container(border=True, key="risk-hero"):
         st.markdown(
             f"""
@@ -265,7 +265,7 @@ with tab2:
         st.markdown("</div>", unsafe_allow_html=True)
 
     st.subheader("従業員プロフィール")
-    st.caption("💵 給与関連の項目は米ドル(USD)建てです（元データセットの通貨単位に準拠）。")
+    st.caption("給与関連の項目は米ドル(USD)建てです（元データセットの通貨単位に準拠）。")
     show_cols = [c for c in df.columns if c not in ID_COLS and c != "Attrition"]
     profile_row = employee_row.iloc[0]
     profile_table = pd.DataFrame(
@@ -357,7 +357,7 @@ with tab3:
     st.subheader("原因分析（LLM）")
     if st.button("原因分析を実行"):
         try:
-            with st.spinner(f"🔍 {llm_model} が離職リスクの要因を分析しています…（数秒お待ちください）"):
+            with st.spinner(f"{llm_model} が離職リスクの要因を分析しています…（数秒お待ちください）"):
                 st.session_state[explanation_key] = cached_explain(
                     selected_id, risk_proba * 100, factors_text, employee_summary, llm_model
                 )
@@ -366,7 +366,7 @@ with tab3:
 
     if explanation_key in st.session_state:
         with st.container(border=True, key="explanation-card"):
-            st.markdown(f'<span class="ai-output-tag">🤖 {llm_model} 生成</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="ai-output-tag">{llm_model} 生成</span>', unsafe_allow_html=True)
             st.markdown(st.session_state[explanation_key])
 
     st.subheader("定着施策の提案（簡易RAG）")
@@ -375,7 +375,7 @@ with tab3:
             st.warning("先に「原因分析を実行」してください。")
         else:
             try:
-                with st.spinner("📋 自社の制度と照らし合わせて定着施策を検討しています…（数秒お待ちください）"):
+                with st.spinner("自社の制度と照らし合わせて定着施策を検討しています…（数秒お待ちください）"):
                     st.session_state[interventions_key] = cached_suggest(
                         selected_id,
                         risk_proba * 100,
@@ -388,7 +388,7 @@ with tab3:
 
     if interventions_key in st.session_state:
         with st.container(border=True, key="interventions-card"):
-            st.markdown(f'<span class="ai-output-tag">🤖 {llm_model} 生成</span>', unsafe_allow_html=True)
+            st.markdown(f'<span class="ai-output-tag">{llm_model} 生成</span>', unsafe_allow_html=True)
             items = [p.strip() for p in st.session_state[interventions_key].split("\n\n") if p.strip()]
             for i, item in enumerate(items):
                 st.markdown(item)
