@@ -174,6 +174,44 @@ def top_risk_factors_for_employee(
     return importance
 
 
+def get_factor_risk_color(feature: str, employee_val: float, dataset_df: pd.DataFrame) -> str:
+    """従業員の値が全体平均と比べてどのくらい危険かを判定し、色を返す。
+    赤(high)・黄(mid)・緑(low)。"""
+    if feature not in dataset_df.columns:
+        return "low"
+
+    try:
+        avg = dataset_df[feature].mean()
+        if avg == 0:
+            return "low"
+
+        pct_diff = ((employee_val - avg) / abs(avg)) * 100
+
+        # 給与関連は「低い」ほど危険
+        salary_features = {"MonthlyIncome", "DailyRate", "HourlyRate", "MonthlyRate"}
+        # 満足度系は「低い」ほど危険
+        satisfaction_features = {"JobSatisfaction", "WorkLifeBalance", "EnvironmentSatisfaction", "RelationshipSatisfaction"}
+
+        is_inverse_risk = feature in (salary_features | satisfaction_features)
+
+        if is_inverse_risk:
+            # 低い値ほど危険 → pct_diffが負なら危険
+            if pct_diff < -30:
+                return "high"
+            elif pct_diff < -10:
+                return "mid"
+        else:
+            # 高い値ほど危険 → pct_diffが正なら危険
+            if pct_diff > 30:
+                return "high"
+            elif pct_diff > 10:
+                return "mid"
+
+        return "low"
+    except (TypeError, ValueError, ZeroDivisionError):
+        return "low"
+
+
 def save_model(
     model: lgb.LGBMClassifier,
     encoders: dict[str, LabelEncoder],

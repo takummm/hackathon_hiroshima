@@ -16,6 +16,7 @@ from model import (  # noqa: E402
     DATA_PATH,
     ID_COLS,
     friendly_data_error_message,
+    get_factor_risk_color,
     load_data,
     load_model,
     score_employee,
@@ -236,10 +237,43 @@ factors_display.insert(0, "要因（日本語）", factors_display["feature"].ap
 factors_display["この従業員の値"] = factors_display.apply(
     lambda r: format_value(r["feature"], r["employee_value"]), axis=1
 )
+
+# 全体平均との比較を追加
+def compute_pct_diff(row):
+    feature = row["feature"]
+    if feature not in df.columns:
+        return "（N/A）"
+    try:
+        avg = float(df[feature].mean())
+        val = float(row["employee_value"])
+        if avg == 0:
+            return "（N/A）"
+        pct = ((val - avg) / abs(avg)) * 100
+        sign = "+" if pct > 0 else ""
+        return f"{sign}{pct:.0f}%"
+    except Exception:
+        return "（N/A）"
+
+def compute_risk_badge(row):
+    try:
+        color = get_factor_risk_color(row["feature"], float(row["employee_value"]), df)
+        emoji = {"high": "🔴", "mid": "🟡", "low": "🟢"}.get(color, "⚪")
+        label = {"high": "高", "mid": "中", "low": "低"}.get(color, "不明")
+        return f"{emoji} {label}"
+    except Exception:
+        return "⚪ 不明"
+
+factors_display["平均との比較"] = factors_display.apply(compute_pct_diff, axis=1)
+factors_display["リスク度"] = factors_display.apply(compute_risk_badge, axis=1)
+
 factors_display = factors_display.rename(
     columns={"feature": "列名（英語）", "importance": "重要度"}
-)[["要因（日本語）", "列名（英語）", "重要度", "この従業員の値"]]
-st.dataframe(factors_display, use_container_width=True)
+)[["要因（日本語）", "列名（英語）", "重要度", "この従業員の値", "平均との比較", "リスク度"]]
+
+st.markdown("### 📊 主要リスク要因の詳細（平均値比較 + リスク度）")
+st.dataframe(factors_display, use_container_width=True, hide_index=True)
+
+st.markdown("### 重要度グラフ")
 st.bar_chart(factors_display.set_index("要因（日本語）")["重要度"])
 
 
