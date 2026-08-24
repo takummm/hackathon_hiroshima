@@ -1,7 +1,9 @@
 """広島県企業向け AI離職予防・人材定着支援サービス（MVP）
 
-ステップ①〜⑤: CSV読込 → リスクスコア表示 → feature importance表示
-→ ④LLMによる原因分析（自然文説明） → ⑤簡易RAGによる施策提案。
+タブ構成:
+  タブ1: 全体リスク一覧 & ターゲット選定（CSV確認・組織全体のリスク一覧・従業員選択）
+  タブ2: 個別詳細カルテ（リスクスコア・プロフィール・主要リスク要因）
+  タブ3: AIアクションプラン（LLMによる原因分析・簡易RAGによる施策提案）
 """
 
 import sys
@@ -36,6 +38,7 @@ from labels import CURRENCY_COLS, format_value, to_ja  # noqa: E402
 
 # Claude Designで作成したUI案（離職リスク分析ダッシュボード）の配色・タイポグラフィを移植。
 RISK_TIER_COLOR = {"high": "#ff6b7a", "mid": "#f0c063", "low": "#6fe3a8"}
+RISK_TIER_BADGE = {"high": "🔴 高", "mid": "🟡 中", "low": "🟢 低"}
 
 st.set_page_config(page_title="AI離職予防・人材定着支援", layout="wide")
 
@@ -90,6 +93,8 @@ FONT_AND_COLOR_CSS = (
     "  border-radius: 10px !important; font-weight: 600 !important;"
     "}"
     ".stButton button:hover { border-color: var(--accent) !important; color: var(--accent) !important; }"
+    '.stTabs [data-baseweb="tab-list"] { gap: 4px; }'
+    '.stTabs [data-baseweb="tab"] { font-weight: 600 !important; }'
     "</style>"
 )
 st.markdown(FONT_AND_COLOR_CSS, unsafe_allow_html=True)
@@ -147,18 +152,22 @@ if dataset_issues:
     )
     st.stop()
 
-with st.expander(f"① 従業員データ（CSV）を表示 — {DATA_PATH.name}（{len(df)}件）", expanded=False):
-    st.dataframe(df.head(10), use_container_width=True)
 
-
-@st.cache_resource(show_spinner="📊 デモ用の高・中・低リスク従業員を選定しています…")
-def get_demo_employees() -> dict:
-    """デモ用に高・中・低リスクの従業員を1名ずつ選定する（data/demo_scenarios.txtと同じロジック）。"""
+@st.cache_data(show_spinner="📊 全従業員のリスクスコアを計算しています…")
+def get_scored_employees() -> pd.DataFrame:
+    """全従業員分のリスクスコアを一括計算する（全体リスク一覧・デモ選定の両方で使用）。"""
     X_all = transform_with_encoders(df, encoders, feature_names)
     scores = model.predict_proba(X_all)[:, 1]
     scored = df.copy()
     scored["risk_score"] = scores
+    return scored
 
+
+scored_df = get_scored_employees()
+
+
+def pick_demo_employees(scored: pd.DataFrame) -> dict:
+    """デモ用に高・中・低リスクの従業員を1名ずつ選定する（data/demo_scenarios.txtと同じロジック）。"""
     high = scored.loc[scored["risk_score"].idxmax()]
     low = scored.loc[scored["risk_score"].idxmin()]
     mid_range = scored[(scored["risk_score"] >= 0.40) & (scored["risk_score"] <= 0.60)]
@@ -173,18 +182,52 @@ def get_demo_employees() -> dict:
     }
 
 
-demo_employees = get_demo_employees()
+demo_employees = pick_demo_employees(scored_df)
 
-st.subheader("従業員を選択")
-st.caption("デモ用ショートカット（高・中・低リスクの代表例）")
-demo_cols = st.columns(3)
-for demo_col, (demo_label, demo_emp_id) in zip(demo_cols, demo_employees.items()):
-    if demo_col.button(f"{demo_label}の例（#{demo_emp_id}）"):
-        st.session_state["employee_select"] = demo_emp_id
+tab1, tab2, tab3 = st.tabs(
+    ["🎯 全体リスク一覧 & ターゲット選定", "🗂️ 個別詳細カルテ", "🤖 AIアクションプラン"]
+)
 
-employee_ids = df["EmployeeNumber"].tolist()
-selected_id = st.selectbox("EmployeeNumber", employee_ids, key="employee_select")
+with tab1:
+    with st.expander(f"元データ（CSV）を表示 — {DATA_PATH.name}（{len(df)}件）", expanded=False):
+        st.dataframe(df.head(10), use_container_width=True)
 
+    st.subheader("組織全体のリスク一覧")
+    st.caption("離職リスクスコアが高い順に表示しています。検索・列並び替えが可能です。")
+
+    org_table = scored_df[["EmployeeNumber", "Department", "JobRole", "risk_score"]].copy()
+    org_table = org_table.sort_values("risk_score", ascending=False).reset_index(drop=True)
+    org_table["リスクスコア"] = (org_table["risk_score"] * 100).round(1).astype(str) + "%"
+    org_table["リスク度"] = org_table["risk_score"].apply(
+        lambda s: RISK_TIER_BADGE[get_risk_tier(s * 100)]
+    )
+    org_table_display = org_table.rename(
+        columns={"EmployeeNumber": "従業員番号", "Department": "部門", "JobRole": "職種"}
+    )[["従業員番号", "部門", "職種", "リスクスコア", "リスク度"]]
+    st.dataframe(org_table_display, use_container_width=True, hide_index=True, height=320)
+
+    high_count = int((scored_df["risk_score"] * 100 >= 70).sum())
+    mid_count = int(
+        ((scored_df["risk_score"] * 100 < 70) & (scored_df["risk_score"] * 100 > 10)).sum()
+    )
+    low_count = int((scored_df["risk_score"] * 100 <= 10).sum())
+    m1, m2, m3 = st.columns(3)
+    m1.metric("🔴 高リスク", f"{high_count}名")
+    m2.metric("🟡 中リスク", f"{mid_count}名")
+    m3.metric("🟢 低リスク", f"{low_count}名")
+
+    st.divider()
+    st.subheader("ターゲット選定")
+    st.caption("デモ用ショートカット（高・中・低リスクの代表例）")
+    demo_cols = st.columns(3)
+    for demo_col, (demo_label, demo_emp_id) in zip(demo_cols, demo_employees.items()):
+        if demo_col.button(f"{demo_label}の例（#{demo_emp_id}）"):
+            st.session_state["employee_select"] = demo_emp_id
+
+    employee_ids = df["EmployeeNumber"].tolist()
+    selected_id = st.selectbox("EmployeeNumber", employee_ids, key="employee_select")
+
+# --- ここから選択中の従業員に対する分析（②③タブで使用） ---
 employee_row = df[df["EmployeeNumber"] == selected_id]
 
 try:
@@ -198,83 +241,81 @@ is_high_risk = risk_proba >= threshold
 risk_tier = get_risk_tier(risk_proba * 100)
 risk_color = RISK_TIER_COLOR[risk_tier]
 
-st.subheader("📊 リスク分析結果")
-with st.container(border=True, key="risk-hero"):
-    st.markdown(
-        f"""
-        <div style="background:{risk_color}14;border-radius:8px;padding:4px 0 0;">
-        """,
-        unsafe_allow_html=True,
-    )
-    col1, col2 = st.columns(2)
-    with col1:
+with tab2:
+    st.caption(f"選択中の従業員: **#{selected_id}**（タブ1で変更できます）")
+
+    st.subheader("📊 リスク分析結果")
+    with st.container(border=True, key="risk-hero"):
         st.markdown(
             f"""
-            <div style="font-size:0.9rem;color:rgba(150,150,150,0.9);margin-bottom:4px;">離職リスクスコア</div>
-            <div style="font-size:3rem;font-weight:800;color:{risk_color};line-height:1.15;">{risk_proba:.1%}</div>
+            <div style="background:{risk_color}14;border-radius:8px;padding:4px 0 0;">
             """,
             unsafe_allow_html=True,
         )
-    col2.metric("判定", "⚠️ 要注意" if is_high_risk else "OK")
-    st.markdown("</div>", unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.markdown(
+                f"""
+                <div style="font-size:0.9rem;color:rgba(150,150,150,0.9);margin-bottom:4px;">離職リスクスコア</div>
+                <div style="font-size:3rem;font-weight:800;color:{risk_color};line-height:1.15;">{risk_proba:.1%}</div>
+                """,
+                unsafe_allow_html=True,
+            )
+        col2.metric("判定", "⚠️ 要注意" if is_high_risk else "OK")
+        st.markdown("</div>", unsafe_allow_html=True)
 
-st.subheader("② 従業員プロフィール")
-st.caption("💵 給与関連の項目は米ドル(USD)建てです（元データセットの通貨単位に準拠）。")
-show_cols = [
-    c for c in df.columns if c not in ID_COLS and c != "Attrition"
-]
-profile_row = employee_row.iloc[0]
-profile_table = pd.DataFrame(
-    {"値": [format_value(c, profile_row[c]) for c in show_cols]},
-    index=[to_ja(c) for c in show_cols],
-)
-st.dataframe(profile_table, use_container_width=True)
+    st.subheader("従業員プロフィール")
+    st.caption("💵 給与関連の項目は米ドル(USD)建てです（元データセットの通貨単位に準拠）。")
+    show_cols = [c for c in df.columns if c not in ID_COLS and c != "Attrition"]
+    profile_row = employee_row.iloc[0]
+    profile_table = pd.DataFrame(
+        {"値": [format_value(c, profile_row[c]) for c in show_cols]},
+        index=[to_ja(c) for c in show_cols],
+    )
+    st.dataframe(profile_table, use_container_width=True)
 
-st.subheader("③ 主要リスク要因")
-factors = top_risk_factors_for_employee(model, X_row, top_n=5)
-factors_display = factors.copy()
-factors_display.insert(0, "要因（日本語）", factors_display["feature"].apply(to_ja))
-factors_display["この従業員の値"] = factors_display.apply(
-    lambda r: format_value(r["feature"], r["employee_value"]), axis=1
-)
+    st.subheader("主要リスク要因")
+    factors = top_risk_factors_for_employee(model, X_row, top_n=5)
+    factors_display = factors.copy()
+    factors_display.insert(0, "要因（日本語）", factors_display["feature"].apply(to_ja))
+    factors_display["この従業員の値"] = factors_display.apply(
+        lambda r: format_value(r["feature"], r["employee_value"]), axis=1
+    )
 
-# 全体平均との比較を追加
-def compute_pct_diff(row):
-    feature = row["feature"]
-    if feature not in df.columns:
-        return "（N/A）"
-    try:
-        avg = float(df[feature].mean())
-        val = float(row["employee_value"])
-        if avg == 0:
+    def compute_pct_diff(row):
+        feature = row["feature"]
+        if feature not in df.columns:
             return "（N/A）"
-        pct = ((val - avg) / abs(avg)) * 100
-        sign = "+" if pct > 0 else ""
-        return f"{sign}{pct:.0f}%"
-    except Exception:
-        return "（N/A）"
+        try:
+            avg = float(df[feature].mean())
+            val = float(row["employee_value"])
+            if avg == 0:
+                return "（N/A）"
+            pct = ((val - avg) / abs(avg)) * 100
+            sign = "+" if pct > 0 else ""
+            return f"{sign}{pct:.0f}%"
+        except Exception:
+            return "（N/A）"
 
-def compute_risk_badge(row):
-    try:
-        color = get_factor_risk_color(row["feature"], float(row["employee_value"]), df)
-        emoji = {"high": "🔴", "mid": "🟡", "low": "🟢"}.get(color, "⚪")
-        label = {"high": "高", "mid": "中", "low": "低"}.get(color, "不明")
-        return f"{emoji} {label}"
-    except Exception:
-        return "⚪ 不明"
+    def compute_risk_badge(row):
+        try:
+            color = get_factor_risk_color(row["feature"], float(row["employee_value"]), df)
+            return RISK_TIER_BADGE.get(color, "⚪ 不明")
+        except Exception:
+            return "⚪ 不明"
 
-factors_display["平均との比較"] = factors_display.apply(compute_pct_diff, axis=1)
-factors_display["リスク度"] = factors_display.apply(compute_risk_badge, axis=1)
+    factors_display["平均との比較"] = factors_display.apply(compute_pct_diff, axis=1)
+    factors_display["リスク度"] = factors_display.apply(compute_risk_badge, axis=1)
 
-factors_display = factors_display.rename(
-    columns={"feature": "列名（英語）", "importance": "重要度"}
-)[["要因（日本語）", "列名（英語）", "重要度", "この従業員の値", "平均との比較", "リスク度"]]
+    factors_display = factors_display.rename(
+        columns={"feature": "列名（英語）", "importance": "重要度"}
+    )[["要因（日本語）", "列名（英語）", "重要度", "この従業員の値", "平均との比較", "リスク度"]]
 
-st.markdown("### 📊 主要リスク要因の詳細（平均値比較 + リスク度）")
-st.dataframe(factors_display, use_container_width=True, hide_index=True)
+    st.markdown("##### 主要リスク要因の詳細（平均値比較 + リスク度）")
+    st.dataframe(factors_display, use_container_width=True, hide_index=True)
 
-st.markdown("### 重要度グラフ")
-st.bar_chart(factors_display.set_index("要因（日本語）")["重要度"])
+    st.markdown("##### 重要度グラフ")
+    st.bar_chart(factors_display.set_index("要因（日本語）")["重要度"])
 
 
 def build_employee_summary(row: pd.Series) -> str:
@@ -310,43 +351,46 @@ def cached_suggest(emp_id: int, risk_pct: float, factors_text: str, explanation:
 explanation_key = f"explanation_{selected_id}"
 interventions_key = f"interventions_{selected_id}"
 
-st.subheader("④ 原因分析（LLM）")
-if st.button("原因分析を実行"):
-    try:
-        with st.spinner(f"🔍 {llm_model} が離職リスクの要因を分析しています…（数秒お待ちください）"):
-            st.session_state[explanation_key] = cached_explain(
-                selected_id, risk_proba * 100, factors_text, employee_summary, llm_model
-            )
-    except Exception as e:  # noqa: BLE001
-        st.error(f"⚠️ {friendly_error_message(e)}")
+with tab3:
+    st.caption(f"選択中の従業員: **#{selected_id}**（タブ1で変更できます）")
 
-if explanation_key in st.session_state:
-    with st.container(border=True, key="explanation-card"):
-        st.markdown(f'<span class="ai-output-tag">🤖 {llm_model} 生成</span>', unsafe_allow_html=True)
-        st.markdown(st.session_state[explanation_key])
-
-st.subheader("⑤ 定着施策の提案（簡易RAG）")
-if st.button("施策提案を実行"):
-    if explanation_key not in st.session_state:
-        st.warning("先に「原因分析を実行」してください。")
-    else:
+    st.subheader("原因分析（LLM）")
+    if st.button("原因分析を実行"):
         try:
-            with st.spinner("📋 自社の制度と照らし合わせて定着施策を検討しています…（数秒お待ちください）"):
-                st.session_state[interventions_key] = cached_suggest(
-                    selected_id,
-                    risk_proba * 100,
-                    factors_text,
-                    st.session_state[explanation_key],
-                    llm_model,
+            with st.spinner(f"🔍 {llm_model} が離職リスクの要因を分析しています…（数秒お待ちください）"):
+                st.session_state[explanation_key] = cached_explain(
+                    selected_id, risk_proba * 100, factors_text, employee_summary, llm_model
                 )
         except Exception as e:  # noqa: BLE001
             st.error(f"⚠️ {friendly_error_message(e)}")
 
-if interventions_key in st.session_state:
-    with st.container(border=True, key="interventions-card"):
-        st.markdown(f'<span class="ai-output-tag">🤖 {llm_model} 生成</span>', unsafe_allow_html=True)
-        items = [p.strip() for p in st.session_state[interventions_key].split("\n\n") if p.strip()]
-        for i, item in enumerate(items):
-            st.markdown(item)
-            if i < len(items) - 1:
-                st.divider()
+    if explanation_key in st.session_state:
+        with st.container(border=True, key="explanation-card"):
+            st.markdown(f'<span class="ai-output-tag">🤖 {llm_model} 生成</span>', unsafe_allow_html=True)
+            st.markdown(st.session_state[explanation_key])
+
+    st.subheader("定着施策の提案（簡易RAG）")
+    if st.button("施策提案を実行"):
+        if explanation_key not in st.session_state:
+            st.warning("先に「原因分析を実行」してください。")
+        else:
+            try:
+                with st.spinner("📋 自社の制度と照らし合わせて定着施策を検討しています…（数秒お待ちください）"):
+                    st.session_state[interventions_key] = cached_suggest(
+                        selected_id,
+                        risk_proba * 100,
+                        factors_text,
+                        st.session_state[explanation_key],
+                        llm_model,
+                    )
+            except Exception as e:  # noqa: BLE001
+                st.error(f"⚠️ {friendly_error_message(e)}")
+
+    if interventions_key in st.session_state:
+        with st.container(border=True, key="interventions-card"):
+            st.markdown(f'<span class="ai-output-tag">🤖 {llm_model} 生成</span>', unsafe_allow_html=True)
+            items = [p.strip() for p in st.session_state[interventions_key].split("\n\n") if p.strip()]
+            for i, item in enumerate(items):
+                st.markdown(item)
+                if i < len(items) - 1:
+                    st.divider()
