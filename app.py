@@ -270,7 +270,10 @@ with tab2:
 
     with profile_col:
         st.subheader("従業員プロフィール")
-        st.caption("給与関連の項目は米ドル(USD)建てです（元データセットの通貨単位に準拠）。")
+        st.caption(
+            "給与関連の項目は米ドル(USD)建てです（元データセットの通貨単位に準拠）。"
+            "円換算は固定レート（1ドル=150円）による概算です。"
+        )
         show_cols = [c for c in df.columns if c not in ID_COLS and c != "Attrition"]
         profile_row = employee_row.iloc[0]
         profile_table = pd.DataFrame(

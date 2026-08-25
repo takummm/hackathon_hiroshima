@@ -52,6 +52,11 @@ def to_ja(feature_name: str) -> str:
 # 明記はないが、原データセットの慣例としてUSD前提で扱われることが一般的なため、その旨を明示する）。
 CURRENCY_COLS = {"MonthlyIncome", "DailyRate", "MonthlyRate", "HourlyRate"}
 
+# 円換算用の固定レート。このデータセットは特定の年月日に紐づかない架空データのため、
+# リアルタイムAPI取得はせず、概算表示用の固定値を用いる（表示層のみで使用。元データ・
+# モデル学習・LLMプロンプトには影響しない）。
+USD_TO_JPY_RATE = 150
+
 
 # カテゴリ列の値を日本語表示に変換するための辞書（列名 → {英語値: 日本語値}）。
 # labels.pyの方針と同様、モデル学習・LLMプロンプトの内部処理では英語の値をそのまま使う。
@@ -102,10 +107,13 @@ def to_ja_value(feature_name: str, value) -> str:
 
 
 def format_value(feature_name: str, value) -> str:
-    """表示用に値をフォーマットする。通貨列は $記号+桁区切り、カテゴリ列は日本語表記に変換する。"""
+    """表示用に値をフォーマットする。通貨列は $記号+桁区切り+円換算（固定レート）、
+    カテゴリ列は日本語表記に変換する。"""
     if feature_name in CURRENCY_COLS:
         try:
-            return f"${float(value):,.0f}"
+            usd = float(value)
+            jpy_man = usd * USD_TO_JPY_RATE / 10000
+            return f"${usd:,.0f}（約{jpy_man:.1f}万円）"
         except (TypeError, ValueError):
             return str(value)
     if feature_name in CATEGORY_LABELS_JA:
