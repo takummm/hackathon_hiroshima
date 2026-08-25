@@ -384,7 +384,7 @@ interventions_key = f"interventions_{selected_id}"
 with tab3:
     st.caption(f"選択中の従業員: **#{selected_id}**（タブ1で変更できます）")
 
-    st.subheader("原因分析（LLM）")
+    st.subheader("原因分析")
 
     st.markdown("##### 個人の特徴量 vs 全体平均")
     chart_rows = []
