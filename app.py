@@ -264,58 +264,62 @@ with tab2:
         col2.metric("判定", "⚠️ 要注意" if is_high_risk else "OK")
         st.markdown("</div>", unsafe_allow_html=True)
 
-    st.subheader("従業員プロフィール")
-    st.caption("給与関連の項目は米ドル(USD)建てです（元データセットの通貨単位に準拠）。")
-    show_cols = [c for c in df.columns if c not in ID_COLS and c != "Attrition"]
-    profile_row = employee_row.iloc[0]
-    profile_table = pd.DataFrame(
-        {"値": [format_value(c, profile_row[c]) for c in show_cols]},
-        index=[to_ja(c) for c in show_cols],
-    )
-    st.dataframe(profile_table, use_container_width=True)
+    profile_col, factors_col = st.columns([2, 3])
 
-    st.subheader("主要リスク要因")
-    factors = top_risk_factors_for_employee(model, X_row, top_n=5)
-    factors_display = factors.copy()
-    factors_display.insert(0, "要因（日本語）", factors_display["feature"].apply(to_ja))
-    factors_display["この従業員の値"] = factors_display.apply(
-        lambda r: format_value(r["feature"], r["employee_value"]), axis=1
-    )
+    with profile_col:
+        st.subheader("従業員プロフィール")
+        st.caption("給与関連の項目は米ドル(USD)建てです（元データセットの通貨単位に準拠）。")
+        show_cols = [c for c in df.columns if c not in ID_COLS and c != "Attrition"]
+        profile_row = employee_row.iloc[0]
+        profile_table = pd.DataFrame(
+            {"値": [format_value(c, profile_row[c]) for c in show_cols]},
+            index=[to_ja(c) for c in show_cols],
+        )
+        st.dataframe(profile_table, use_container_width=True, height=460)
 
-    def compute_pct_diff(row):
-        feature = row["feature"]
-        if feature not in df.columns:
-            return "（N/A）"
-        try:
-            avg = float(df[feature].mean())
-            val = float(row["employee_value"])
-            if avg == 0:
+    with factors_col:
+        st.subheader("主要リスク要因")
+        factors = top_risk_factors_for_employee(model, X_row, top_n=5)
+        factors_display = factors.copy()
+        factors_display.insert(0, "要因（日本語）", factors_display["feature"].apply(to_ja))
+        factors_display["この従業員の値"] = factors_display.apply(
+            lambda r: format_value(r["feature"], r["employee_value"]), axis=1
+        )
+
+        def compute_pct_diff(row):
+            feature = row["feature"]
+            if feature not in df.columns:
                 return "（N/A）"
-            pct = ((val - avg) / abs(avg)) * 100
-            sign = "+" if pct > 0 else ""
-            return f"{sign}{pct:.0f}%"
-        except Exception:
-            return "（N/A）"
+            try:
+                avg = float(df[feature].mean())
+                val = float(row["employee_value"])
+                if avg == 0:
+                    return "（N/A）"
+                pct = ((val - avg) / abs(avg)) * 100
+                sign = "+" if pct > 0 else ""
+                return f"{sign}{pct:.0f}%"
+            except Exception:
+                return "（N/A）"
 
-    def compute_risk_badge(row):
-        try:
-            color = get_factor_risk_color(row["feature"], float(row["employee_value"]), df)
-            return RISK_TIER_BADGE.get(color, "⚪ 不明")
-        except Exception:
-            return "⚪ 不明"
+        def compute_risk_badge(row):
+            try:
+                color = get_factor_risk_color(row["feature"], float(row["employee_value"]), df)
+                return RISK_TIER_BADGE.get(color, "⚪ 不明")
+            except Exception:
+                return "⚪ 不明"
 
-    factors_display["平均との比較"] = factors_display.apply(compute_pct_diff, axis=1)
-    factors_display["リスク度"] = factors_display.apply(compute_risk_badge, axis=1)
+        factors_display["平均との比較"] = factors_display.apply(compute_pct_diff, axis=1)
+        factors_display["リスク度"] = factors_display.apply(compute_risk_badge, axis=1)
 
-    factors_display = factors_display.rename(
-        columns={"feature": "列名（英語）", "importance": "重要度"}
-    )[["要因（日本語）", "列名（英語）", "重要度", "この従業員の値", "平均との比較", "リスク度"]]
+        factors_display = factors_display.rename(
+            columns={"feature": "列名（英語）", "importance": "重要度"}
+        )[["要因（日本語）", "列名（英語）", "重要度", "この従業員の値", "平均との比較", "リスク度"]]
 
-    st.markdown("##### 主要リスク要因の詳細（平均値比較 + リスク度）")
-    st.dataframe(factors_display, use_container_width=True, hide_index=True)
+        st.markdown("##### 主要リスク要因の詳細（平均値比較 + リスク度）")
+        st.dataframe(factors_display, use_container_width=True, hide_index=True, height=210)
 
-    st.markdown("##### 重要度グラフ")
-    st.bar_chart(factors_display.set_index("要因（日本語）")["重要度"])
+        st.markdown("##### 重要度グラフ")
+        st.bar_chart(factors_display.set_index("要因（日本語）")["重要度"], height=210)
 
 
 def build_employee_summary(row: pd.Series) -> str:
