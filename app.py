@@ -9,6 +9,7 @@
 import sys
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -188,9 +189,29 @@ tab1, tab2, tab3 = st.tabs(
     ["全体リスク一覧 & ターゲット選定", "個別詳細カルテ", "AIによる提案"]
 )
 
+SAMPLE_CSV_PATH = Path(__file__).resolve().parent / "data" / "sample_input_template.csv"
+
+
 with tab1:
     with st.expander(f"元データ（CSV）を表示 — {DATA_PATH.name}（{len(df)}件）", expanded=False):
         st.dataframe(df.head(10), use_container_width=True)
+
+    with st.expander("データ形式について（まずこの形式で試してください）", expanded=False):
+        st.caption("自社データを使う際は、以下と同じ列構成のCSVをご用意ください。")
+        if SAMPLE_CSV_PATH.exists():
+            st.download_button(
+                "サンプルCSVをダウンロード",
+                data=SAMPLE_CSV_PATH.read_bytes(),
+                file_name="sample_input_template.csv",
+                mime="text/csv",
+            )
+        input_cols = [c for c in df.columns if c not in ID_COLS]
+        col_desc_table = pd.DataFrame(
+            {"意味": [to_ja(c) for c in input_cols]},
+            index=input_cols,
+        )
+        col_desc_table.index.name = "列名（英語）"
+        st.dataframe(col_desc_table, use_container_width=True, height=240)
 
     st.subheader("組織全体のリスク一覧")
     st.caption("離職リスクスコアが高い順に表示しています。検索・列並び替えが可能です。")
@@ -364,6 +385,44 @@ with tab3:
     st.caption(f"選択中の従業員: **#{selected_id}**（タブ1で変更できます）")
 
     st.subheader("原因分析（LLM）")
+
+    st.markdown("##### 個人の特徴量 vs 全体平均")
+    chart_rows = []
+    for _, row in factors.iterrows():
+        feature = row["feature"]
+        emp_val = row["employee_value"]
+        try:
+            avg = float(df[feature].mean())
+            val = float(emp_val)
+            pct = ((val - avg) / abs(avg)) * 100 if avg != 0 else 0.0
+        except (TypeError, ValueError):
+            pct = 0.0
+        color = get_factor_risk_color(feature, emp_val, df)
+        chart_rows.append(
+            {
+                "要因": to_ja(feature),
+                "平均との差(%)": pct,
+                "リスク度": {"high": "高", "mid": "中", "low": "低"}[color],
+            }
+        )
+    chart_df = pd.DataFrame(chart_rows)
+    factor_chart = (
+        alt.Chart(chart_df)
+        .mark_bar()
+        .encode(
+            x=alt.X("平均との差(%):Q", title="全体平均との差（%）"),
+            y=alt.Y("要因:N", sort="-x", title=None),
+            color=alt.Color(
+                "リスク度:N",
+                scale=alt.Scale(domain=["高", "中", "低"], range=["#ff6b7a", "#f0c063", "#6fe3a8"]),
+                legend=alt.Legend(title="リスク度"),
+            ),
+            tooltip=["要因", alt.Tooltip("平均との差(%):Q", format="+.1f"), "リスク度"],
+        )
+        .properties(height=220)
+    )
+    st.altair_chart(factor_chart, use_container_width=True)
+
     if st.button("原因分析を実行"):
         try:
             with st.spinner(f"{llm_model} が離職リスクの要因を分析しています…（数秒お待ちください）"):
