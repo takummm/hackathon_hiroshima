@@ -437,7 +437,7 @@ with tab3:
             st.markdown(f'<span class="ai-output-tag">{llm_model} 生成</span>', unsafe_allow_html=True)
             st.markdown(st.session_state[explanation_key])
 
-    st.subheader("定着施策の提案（簡易RAG）")
+    st.subheader("定着施策の提案")
     if st.button("施策提案を実行"):
         if explanation_key not in st.session_state:
             st.warning("先に「原因分析を実行」してください。")
