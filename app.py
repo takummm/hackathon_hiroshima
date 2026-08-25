@@ -341,7 +341,7 @@ with tab2:
             columns={"feature": "列名（英語）", "importance": "重要度"}
         )[["要因（日本語）", "列名（英語）", "重要度", "この従業員の値", "平均との比較", "リスク度"]]
 
-        st.markdown("##### 主要リスク要因の詳細（平均値比較 + リスク度）")
+        st.markdown("##### 主要リスク要因の詳細")
         st.dataframe(factors_display, use_container_width=True, hide_index=True, height=210)
 
         st.markdown("##### 重要度グラフ")
