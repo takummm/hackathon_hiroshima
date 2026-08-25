@@ -103,8 +103,8 @@ st.markdown(FONT_AND_COLOR_CSS, unsafe_allow_html=True)
 st.markdown(
     '<div class="app-eyebrow">AI離職予防・人材定着支援サービス</div>'
     '<div class="app-title">従業員リスク分析ダッシュボード</div>'
-    '<div class="app-desc">CSVから従業員データを読み込み、離職リスクをスコア化。'
-    "主要因を提示し、Claude APIが原因分析と定着施策を自然文で提案します。</div>",
+    '<div class="app-desc">従業員データを読み込み、離職リスクをスコア化。'
+    "要因を示し、AIが原因分析と定着施策を提案します。</div>",
     unsafe_allow_html=True,
 )
 
