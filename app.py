@@ -34,7 +34,7 @@ from llm import (  # noqa: E402
     get_risk_tier,
     suggest_interventions,
 )
-from labels import CURRENCY_COLS, format_value, to_ja  # noqa: E402
+from labels import CURRENCY_COLS, format_value, to_ja, to_ja_value  # noqa: E402
 
 # Claude Designで作成したUI案（離職リスク分析ダッシュボード）の配色・タイポグラフィを移植。
 RISK_TIER_COLOR = {"high": "#ff6b7a", "mid": "#f0c063", "low": "#6fe3a8"}
@@ -197,6 +197,8 @@ with tab1:
 
     org_table = scored_df[["EmployeeNumber", "Department", "JobRole", "risk_score"]].copy()
     org_table = org_table.sort_values("risk_score", ascending=False).reset_index(drop=True)
+    org_table["Department"] = org_table["Department"].apply(lambda v: to_ja_value("Department", v))
+    org_table["JobRole"] = org_table["JobRole"].apply(lambda v: to_ja_value("JobRole", v))
     org_table["リスクスコア"] = (org_table["risk_score"] * 100).round(1).astype(str) + "%"
     org_table["リスク度"] = org_table["risk_score"].apply(
         lambda s: RISK_TIER_BADGE[get_risk_tier(s * 100)]

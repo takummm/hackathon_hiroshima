@@ -53,11 +53,61 @@ def to_ja(feature_name: str) -> str:
 CURRENCY_COLS = {"MonthlyIncome", "DailyRate", "MonthlyRate", "HourlyRate"}
 
 
+# カテゴリ列の値を日本語表示に変換するための辞書（列名 → {英語値: 日本語値}）。
+# labels.pyの方針と同様、モデル学習・LLMプロンプトの内部処理では英語の値をそのまま使う。
+CATEGORY_LABELS_JA: dict[str, dict[str, str]] = {
+    "Attrition": {"No": "在籍", "Yes": "離職"},
+    "BusinessTravel": {
+        "Non-Travel": "出張なし",
+        "Travel_Rarely": "稀に出張",
+        "Travel_Frequently": "頻繁に出張",
+    },
+    "Department": {
+        "Human Resources": "人事部",
+        "Research & Development": "研究開発部",
+        "Sales": "営業部",
+    },
+    "EducationField": {
+        "Human Resources": "人事",
+        "Life Sciences": "生命科学",
+        "Marketing": "マーケティング",
+        "Medical": "医療",
+        "Other": "その他",
+        "Technical Degree": "技術系",
+    },
+    "Gender": {"Female": "女性", "Male": "男性"},
+    "JobRole": {
+        "Healthcare Representative": "ヘルスケア担当",
+        "Human Resources": "人事",
+        "Laboratory Technician": "検査技師",
+        "Manager": "マネージャー",
+        "Manufacturing Director": "製造部門責任者",
+        "Research Director": "研究部門責任者",
+        "Research Scientist": "研究員",
+        "Sales Executive": "営業（エグゼクティブ）",
+        "Sales Representative": "営業（担当者）",
+    },
+    "MaritalStatus": {"Divorced": "離婚", "Married": "既婚", "Single": "未婚"},
+    "Over18": {"Y": "はい"},
+    "OverTime": {"No": "なし", "Yes": "あり"},
+}
+
+
+def to_ja_value(feature_name: str, value) -> str:
+    """カテゴリ値を日本語表示に変換する。未登録の列・値はそのまま返す。"""
+    mapping = CATEGORY_LABELS_JA.get(feature_name)
+    if mapping is None:
+        return str(value)
+    return mapping.get(str(value), str(value))
+
+
 def format_value(feature_name: str, value) -> str:
-    """表示用に値をフォーマットする。通貨列は $記号+桁区切りを付与する。"""
+    """表示用に値をフォーマットする。通貨列は $記号+桁区切り、カテゴリ列は日本語表記に変換する。"""
     if feature_name in CURRENCY_COLS:
         try:
             return f"${float(value):,.0f}"
         except (TypeError, ValueError):
             return str(value)
+    if feature_name in CATEGORY_LABELS_JA:
+        return to_ja_value(feature_name, value)
     return str(value)
