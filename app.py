@@ -189,29 +189,9 @@ tab1, tab2, tab3 = st.tabs(
     ["全体リスク一覧 & ターゲット選定", "個別詳細カルテ", "AIによる提案"]
 )
 
-SAMPLE_CSV_PATH = Path(__file__).resolve().parent / "data" / "sample_input_template.csv"
-
-
 with tab1:
     with st.expander(f"元データ（CSV）を表示 — {DATA_PATH.name}（{len(df)}件）", expanded=False):
         st.dataframe(df.head(10), use_container_width=True)
-
-    with st.expander("データ形式について（まずこの形式で試してください）", expanded=False):
-        st.caption("自社データを使う際は、以下と同じ列構成のCSVをご用意ください。")
-        if SAMPLE_CSV_PATH.exists():
-            st.download_button(
-                "サンプルCSVをダウンロード",
-                data=SAMPLE_CSV_PATH.read_bytes(),
-                file_name="sample_input_template.csv",
-                mime="text/csv",
-            )
-        input_cols = [c for c in df.columns if c not in ID_COLS]
-        col_desc_table = pd.DataFrame(
-            {"意味": [to_ja(c) for c in input_cols]},
-            index=input_cols,
-        )
-        col_desc_table.index.name = "列名（英語）"
-        st.dataframe(col_desc_table, use_container_width=True, height=240)
 
     st.subheader("組織全体のリスク一覧")
     st.caption("離職リスクスコアが高い順に表示しています。検索・列並び替えが可能です。")
