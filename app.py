@@ -194,6 +194,45 @@ with tab1:
     with st.expander(f"元データ（CSV）を表示 — {DATA_PATH.name}（{len(df)}件）", expanded=False):
         st.dataframe(df.head(10), use_container_width=True)
 
+    st.subheader("部署別リスクヒートマップ")
+    st.caption("部門×職種ごとの平均離職リスク。色が濃いほどリスクが高い組み合わせです。")
+
+    heatmap_df = scored_df[["Department", "JobRole", "risk_score"]].copy()
+    heatmap_df["部門"] = heatmap_df["Department"].apply(lambda v: to_ja_value("Department", v))
+    heatmap_df["職種"] = heatmap_df["JobRole"].apply(lambda v: to_ja_value("JobRole", v))
+    heatmap_agg = heatmap_df.groupby(["部門", "職種"], as_index=False).agg(
+        平均リスク=("risk_score", "mean"), 人数=("risk_score", "size")
+    )
+    heatmap_agg["平均リスク(%)"] = (heatmap_agg["平均リスク"] * 100).round(1)
+
+    heatmap_base = alt.Chart(heatmap_agg).encode(
+        x=alt.X("職種:N", title=None),
+        y=alt.Y("部門:N", title=None),
+    )
+    heatmap_rect = heatmap_base.mark_rect().encode(
+        color=alt.Color(
+            "平均リスク(%):Q",
+            scale=alt.Scale(scheme="reds"),
+            title="平均リスク(%)",
+        ),
+        tooltip=[
+            "部門",
+            "職種",
+            alt.Tooltip("平均リスク(%):Q", format=".1f"),
+            alt.Tooltip("人数:Q", title="人数"),
+        ],
+    )
+    heatmap_text = heatmap_base.mark_text(baseline="middle", fontSize=12).encode(
+        text=alt.Text("平均リスク(%):Q", format=".0f"),
+        color=alt.condition(
+            alt.datum["平均リスク(%)"] > 55, alt.value("white"), alt.value("#1e293b")
+        ),
+    )
+    st.altair_chart(
+        (heatmap_rect + heatmap_text).properties(height=200),
+        use_container_width=True,
+    )
+
     st.subheader("組織全体のリスク一覧")
     st.caption("離職リスクスコアが高い順に表示しています。検索・列並び替えが可能です。")
 
