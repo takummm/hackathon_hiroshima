@@ -300,12 +300,16 @@ with tab2:
         with col1:
             st.markdown(
                 f"""
-                <div style="font-size:0.9rem;color:#64748b;margin-bottom:4px;">離職リスクスコア</div>
+                <div style="font-size:0.9rem;color:#64748b;margin-bottom:4px;" title="過去の従業員データから学習したAIモデルが、給与・勤務状況・満足度など複数の要因をもとに算出した離職の可能性です。100%に近いほど、過去に離職した人と似た傾向が強いことを意味します（モデルの的中率とは別の指標です）。">離職リスクスコア ⓘ</div>
                 <div style="font-size:3rem;font-weight:800;color:{risk_color};line-height:1.15;">{risk_proba:.1%}</div>
                 """,
                 unsafe_allow_html=True,
             )
-        col2.metric("判定", "⚠️ 要注意" if is_high_risk else "OK")
+        col2.metric(
+            "判定",
+            "⚠️ 要注意" if is_high_risk else "OK",
+            help="離職リスクスコアが30%を超えると「要注意」と判定します。離職の兆候をできるだけ早く察知するために設定した基準です。",
+        )
         st.markdown("</div>", unsafe_allow_html=True)
 
     profile_col, factors_col = st.columns([2, 3])
