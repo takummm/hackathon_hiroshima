@@ -374,17 +374,21 @@ with tab2:
 
 
 def build_employee_summary(row: pd.Series) -> str:
+    """LLMプロンプト用の従業員概要を日本語で構築する。
+    英語の列名をそのまま渡すと、LLMの生成文にも英語が混入することがあるため、
+    ラベル・値ともに日本語表記に変換してから渡す。"""
     keys = [
         "Age", "Department", "JobRole", "MonthlyIncome", "DistanceFromHome",
         "OverTime", "JobSatisfaction", "WorkLifeBalance", "YearsAtCompany",
         "YearsSinceLastPromotion",
     ]
-    return "\n".join(f"- {k}: {row[k]}" for k in keys if k in row)
+    return "\n".join(f"- {to_ja(k)}: {format_value(k, row[k])}" for k in keys if k in row)
 
 
 def build_factors_text(factors_df: pd.DataFrame) -> str:
+    """LLMプロンプト用の主要リスク要因を日本語で構築する（理由はbuild_employee_summaryと同様）。"""
     return "\n".join(
-        f"- {r.feature}: importance={r.importance}, 従業員の値={r.employee_value}"
+        f"- {to_ja(r.feature)}: 重要度={r.importance}, 従業員の値={format_value(r.feature, r.employee_value)}"
         for r in factors_df.itertuples()
     )
 
