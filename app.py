@@ -37,8 +37,8 @@ from llm import (  # noqa: E402
 )
 from labels import CURRENCY_COLS, format_value, to_ja, to_ja_value  # noqa: E402
 
-# Claude Designで作成したUI案（離職リスク分析ダッシュボード）の配色・タイポグラフィを移植。
-RISK_TIER_COLOR = {"high": "#ff6b7a", "mid": "#f0c063", "low": "#6fe3a8"}
+# ライトテーマ（濃紺・ネイビー基調 + 青系アクセント）の配色・タイポグラフィ。
+RISK_TIER_COLOR = {"high": "#dc2626", "mid": "#d97706", "low": "#16a34a"}
 RISK_TIER_BADGE = {"high": "🔴 高", "mid": "🟡 中", "low": "🟢 低"}
 
 st.set_page_config(page_title="AI離職予防・人材定着支援", layout="wide")
@@ -49,8 +49,10 @@ FONT_AND_COLOR_CSS = (
     '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet">'
     "<style>"
     ":root {"
-    "  --accent: #6ea8ff; --accent-soft: rgba(110, 168, 255, 0.10); --accent-border: rgba(110, 168, 255, 0.22);"
-    "  --bg: #0a0d13; --surface: #111722; --surface-border: rgba(255, 255, 255, 0.07);"
+    "  --accent: #2563eb; --accent-soft: rgba(37, 99, 235, 0.08); --accent-border: rgba(37, 99, 235, 0.25);"
+    "  --navy: #1e3a8a;"
+    "  --bg: #f4f6f9; --surface: #ffffff; --surface-border: #e2e8f0;"
+    "  --text: #1e293b; --text-dim: #475569; --text-faint: #94a3b8;"
     "}"
     'html, body, [class*="css"], .stButton button, .stSelectbox, .stTextInput,'
     ' [data-testid="stMetricLabel"], [data-testid="stMetricValue"], h1, h2, h3, h4,'
@@ -58,10 +60,9 @@ FONT_AND_COLOR_CSS = (
     ' [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] * {'
     '  font-family: "Inter", "Noto Sans JP", "Hiragino Sans", "Yu Gothic", sans-serif !important;'
     "}"
-    '[data-testid="stAppViewContainer"], [data-testid="stSidebar"] { background: var(--bg) !important; }'
     ".st-key-risk-hero, .st-key-explanation-card, .st-key-interventions-card {"
     "  background: var(--surface) !important; border: 1px solid var(--surface-border) !important;"
-    "  border-radius: 12px !important;"
+    "  border-radius: 10px !important;"
     "}"
     "h1 { font-weight: 800 !important; letter-spacing: -0.02em; }"
     "h2, h3, h4 { font-weight: 700 !important; }"
@@ -73,15 +74,15 @@ FONT_AND_COLOR_CSS = (
     ".app-eyebrow {"
     "  color: var(--accent); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.03em; margin-bottom: 4px;"
     "}"
-    ".app-title { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; color: #f5f7fb; margin-bottom: 6px; }"
-    ".app-desc { color: rgba(230, 235, 245, 0.65); font-size: 0.95rem; max-width: 62ch; line-height: 1.7; margin-bottom: 1.6rem; }"
+    ".app-title { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; color: var(--navy); margin-bottom: 6px; }"
+    ".app-desc { color: var(--text-dim); font-size: 0.95rem; max-width: 62ch; line-height: 1.7; margin-bottom: 1.6rem; }"
     ".tech-badge {"
     "  display: inline-block; font-size: 0.72rem; font-weight: 600;"
-    "  color: #8fb0ff; background: rgba(110, 168, 255, 0.1); border: 1px solid rgba(110, 168, 255, 0.2);"
+    "  color: #1d4ed8; background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.2);"
     "  border-radius: 999px; padding: 3px 10px; margin: 2px 4px 2px 0;"
     "}"
     ".st-key-explanation-card p, .st-key-interventions-card p {"
-    "  font-size: 1.05rem; line-height: 1.9; margin-bottom: 0.6rem;"
+    "  font-size: 1.05rem; line-height: 1.9; margin-bottom: 0.6rem; color: var(--text);"
     "}"
     ".st-key-explanation-card, .st-key-interventions-card { padding: 1.1rem 1.3rem; }"
     ".ai-output-tag {"
@@ -90,8 +91,8 @@ FONT_AND_COLOR_CSS = (
     "  border-radius: 999px; padding: 3px 10px; margin-bottom: 10px;"
     "}"
     ".stButton button {"
-    "  background: #161d2b !important; border: 1px solid rgba(255, 255, 255, 0.1) !important;"
-    "  border-radius: 10px !important; font-weight: 600 !important;"
+    "  background: #f8fafc !important; border: 1px solid var(--surface-border) !important;"
+    "  border-radius: 8px !important; font-weight: 600 !important; color: var(--text) !important;"
     "}"
     ".stButton button:hover { border-color: var(--accent) !important; color: var(--accent) !important; }"
     '.stTabs [data-baseweb="tab-list"] { gap: 4px; }'
@@ -114,7 +115,7 @@ with st.sidebar:
     llm_model = MODEL_PROD if is_prod_mode else MODEL_DEV
     st.caption(f"使用モデル: {llm_model}")
     st.markdown(
-        '<div style="margin-top:1.8rem;padding-top:1rem;border-top:1px solid rgba(255,255,255,0.07);">'
+        '<div style="margin-top:1.8rem;padding-top:1rem;border-top:1px solid #e2e8f0;">'
         '<span class="tech-badge">LightGBM</span>'
         '<span class="tech-badge">Claude API</span>'
         '<span class="tech-badge">Streamlit</span>'
@@ -259,7 +260,7 @@ with tab2:
         with col1:
             st.markdown(
                 f"""
-                <div style="font-size:0.9rem;color:rgba(150,150,150,0.9);margin-bottom:4px;">離職リスクスコア</div>
+                <div style="font-size:0.9rem;color:#64748b;margin-bottom:4px;">離職リスクスコア</div>
                 <div style="font-size:3rem;font-weight:800;color:{risk_color};line-height:1.15;">{risk_proba:.1%}</div>
                 """,
                 unsafe_allow_html=True,
@@ -408,7 +409,10 @@ with tab3:
                 y=alt.Y("要因:N", sort="-x", title=None),
                 color=alt.Color(
                     "リスク度:N",
-                    scale=alt.Scale(domain=["高", "中", "低"], range=["#ff6b7a", "#f0c063", "#6fe3a8"]),
+                    scale=alt.Scale(
+                        domain=["高", "中", "低"],
+                        range=[RISK_TIER_COLOR["high"], RISK_TIER_COLOR["mid"], RISK_TIER_COLOR["low"]],
+                    ),
                     legend=alt.Legend(title="リスク度"),
                 ),
                 tooltip=["要因", alt.Tooltip("平均との差(%):Q", format="+.1f"), "リスク度"],
