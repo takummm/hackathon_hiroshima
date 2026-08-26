@@ -174,6 +174,23 @@ def top_risk_factors_for_employee(
     return importance
 
 
+# 給与関連は「低い」ほど危険
+SALARY_FEATURES = {"MonthlyIncome", "DailyRate", "HourlyRate", "MonthlyRate"}
+# 満足度系は「低い」ほど危険
+SATISFACTION_FEATURES = {"JobSatisfaction", "WorkLifeBalance", "EnvironmentSatisfaction", "RelationshipSatisfaction"}
+INVERSE_RISK_FEATURES = SALARY_FEATURES | SATISFACTION_FEATURES
+
+
+def get_risk_direction(feature: str) -> int:
+    """値が大きいほど危険なら+1、小さいほど危険なら-1を返す。
+
+    平均との差(%)にこの符号を掛けると、プラスなら常に「離職リスクを高める方向」、
+    マイナスなら常に「定着に寄与する方向」という向きに統一できる
+    （例：給与が平均より低い＝pct_diffは負だが、危険方向としては+扱いにしたい）。
+    """
+    return -1 if feature in INVERSE_RISK_FEATURES else 1
+
+
 def get_factor_risk_color(feature: str, employee_val: float, dataset_df: pd.DataFrame) -> str:
     """従業員の値が全体平均と比べてどのくらい危険かを判定し、色を返す。
     赤(high)・黄(mid)・緑(low)。"""
@@ -186,27 +203,12 @@ def get_factor_risk_color(feature: str, employee_val: float, dataset_df: pd.Data
             return "low"
 
         pct_diff = ((employee_val - avg) / abs(avg)) * 100
+        risk_impact = pct_diff * get_risk_direction(feature)
 
-        # 給与関連は「低い」ほど危険
-        salary_features = {"MonthlyIncome", "DailyRate", "HourlyRate", "MonthlyRate"}
-        # 満足度系は「低い」ほど危険
-        satisfaction_features = {"JobSatisfaction", "WorkLifeBalance", "EnvironmentSatisfaction", "RelationshipSatisfaction"}
-
-        is_inverse_risk = feature in (salary_features | satisfaction_features)
-
-        if is_inverse_risk:
-            # 低い値ほど危険 → pct_diffが負なら危険
-            if pct_diff < -30:
-                return "high"
-            elif pct_diff < -10:
-                return "mid"
-        else:
-            # 高い値ほど危険 → pct_diffが正なら危険
-            if pct_diff > 30:
-                return "high"
-            elif pct_diff > 10:
-                return "mid"
-
+        if risk_impact > 30:
+            return "high"
+        elif risk_impact > 10:
+            return "mid"
         return "low"
     except (TypeError, ValueError, ZeroDivisionError):
         return "low"
