@@ -143,13 +143,13 @@ def to_ja_ordinal(feature_name: str, value) -> str | None:
 
 
 def format_value(feature_name: str, value) -> str:
-    """表示用に値をフォーマットする。通貨列は $記号+桁区切り+円換算（固定レート）、
+    """表示用に値をフォーマットする。通貨列は円換算（固定レート）のみ表示、
     カテゴリ列・順序尺度列は日本語表記に変換する。"""
     if feature_name in CURRENCY_COLS:
         try:
             usd = float(value)
             jpy_man = usd * USD_TO_JPY_RATE / 10000
-            return f"${usd:,.0f}（約{jpy_man:.1f}万円）"
+            return f"約{jpy_man:.1f}万円"
         except (TypeError, ValueError):
             return str(value)
     if feature_name in CATEGORY_LABELS_JA:
