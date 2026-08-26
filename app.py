@@ -37,9 +37,9 @@ from llm import (  # noqa: E402
     suggest_interventions,
 )
 from labels import CURRENCY_COLS, format_value, to_ja, to_ja_value  # noqa: E402
+from colors import RISK_TIER_COLOR  # noqa: E402
 
 # ライトテーマ（濃紺・ネイビー基調 + 青系アクセント）の配色・タイポグラフィ。
-RISK_TIER_COLOR = {"high": "#dc2626", "mid": "#d97706", "low": "#16a34a"}
 RISK_TIER_BADGE = {"high": "🔴 高", "mid": "🟡 中", "low": "🟢 低"}
 
 st.set_page_config(page_title="AI離職予防・人材定着支援", layout="wide")
