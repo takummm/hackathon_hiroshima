@@ -417,7 +417,7 @@ with tab3:
 
     if explanation_key in st.session_state:
         with st.container(border=True, key="explanation-card"):
-            st.markdown(f'<span class="ai-output-tag">{llm_model} 生成</span>', unsafe_allow_html=True)
+            st.markdown('<span class="ai-output-tag">AIアドバイザーの分析結果</span>', unsafe_allow_html=True)
             st.markdown(st.session_state[explanation_key])
 
         st.markdown("##### 個人の特徴量 vs 全体平均")
@@ -479,7 +479,7 @@ with tab3:
 
     if interventions_key in st.session_state:
         with st.container(border=True, key="interventions-card"):
-            st.markdown(f'<span class="ai-output-tag">{llm_model} 生成</span>', unsafe_allow_html=True)
+            st.markdown('<span class="ai-output-tag">AIアドバイザーの分析結果</span>', unsafe_allow_html=True)
             items = [p.strip() for p in st.session_state[interventions_key].split("\n\n") if p.strip()]
             for i, item in enumerate(items):
                 st.markdown(item)
