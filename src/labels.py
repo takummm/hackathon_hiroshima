@@ -106,9 +106,45 @@ def to_ja_value(feature_name: str, value) -> str:
     return mapping.get(str(value), str(value))
 
 
+# 順序尺度（数値の大小に意味がある列）を、IBM HR Analyticsデータセットの公式ドキュメントに
+# 記載された尺度定義に基づいて日本語ラベル化する。JobLevel・StockOptionLevel等は
+# 公式な尺度定義が公開されていないため、意味を捏造しないよう対象外とする。
+ORDINAL_LABELS_JA: dict[str, dict[int, str]] = {
+    "Education": {
+        1: "高校卒以下",
+        2: "短大・専門卒",
+        3: "大学卒",
+        4: "大学院卒（修士）",
+        5: "大学院卒（博士）",
+    },
+    "EnvironmentSatisfaction": {1: "低い", 2: "普通", 3: "高い", 4: "非常に高い"},
+    "JobInvolvement": {1: "低い", 2: "普通", 3: "高い", 4: "非常に高い"},
+    "JobSatisfaction": {1: "低い", 2: "普通", 3: "高い", 4: "非常に高い"},
+    "PerformanceRating": {1: "要改善", 2: "良好", 3: "優秀", 4: "卓越"},
+    "RelationshipSatisfaction": {1: "低い", 2: "普通", 3: "高い", 4: "非常に高い"},
+    "WorkLifeBalance": {1: "悪い", 2: "良い", 3: "より良い", 4: "最良"},
+}
+
+
+def to_ja_ordinal(feature_name: str, value) -> str | None:
+    """順序尺度の値を「ラベル (値/最大値)」形式に変換する。対象外の列はNoneを返す。"""
+    mapping = ORDINAL_LABELS_JA.get(feature_name)
+    if mapping is None:
+        return None
+    try:
+        v = int(value)
+    except (TypeError, ValueError):
+        return None
+    label = mapping.get(v)
+    if label is None:
+        return None
+    max_v = max(mapping.keys())
+    return f"{label} ({v}/{max_v})"
+
+
 def format_value(feature_name: str, value) -> str:
     """表示用に値をフォーマットする。通貨列は $記号+桁区切り+円換算（固定レート）、
-    カテゴリ列は日本語表記に変換する。"""
+    カテゴリ列・順序尺度列は日本語表記に変換する。"""
     if feature_name in CURRENCY_COLS:
         try:
             usd = float(value)
@@ -118,4 +154,7 @@ def format_value(feature_name: str, value) -> str:
             return str(value)
     if feature_name in CATEGORY_LABELS_JA:
         return to_ja_value(feature_name, value)
+    ordinal = to_ja_ordinal(feature_name, value)
+    if ordinal is not None:
+        return ordinal
     return str(value)
