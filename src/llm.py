@@ -129,7 +129,8 @@ def explain_risk_factors(
   満足度面からの解釈もバランスよく含めること
 - 断定しすぎず「〜の可能性が考えられます」のような表現を使うこと
 - {tone}
-- 出力は説明文のみ（見出しや箇条書きは不要）"""
+- 出力は説明文のみ（見出しや箇条書きは不要）
+- 太字（**）や見出し（#）などのMarkdown記法は使わず、プレーンテキストで出力すること"""
 
     client = get_client()
     response = client.messages.create(
@@ -171,7 +172,8 @@ def suggest_interventions(
 - 存在しない制度を創作しないこと
 - 各提案は1〜2文程度で簡潔にまとめること
 - {tone}
-- 出力は箇条書きの施策のみ（前置きの挨拶などは不要）"""
+- 出力は箇条書きの施策のみ（前置きの挨拶などは不要）
+- 太字（**）や見出し（#）などのMarkdown記法は使わず、プレーンテキストで出力すること"""
 
     client = get_client()
     response = client.messages.create(

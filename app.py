@@ -20,7 +20,6 @@ from model import (  # noqa: E402
     ID_COLS,
     friendly_data_error_message,
     get_factor_risk_color,
-    get_risk_direction,
     load_data,
     load_model,
     score_employee,
@@ -428,48 +427,6 @@ with tab3:
     if explanation_key in st.session_state:
         with st.container(border=True, key="explanation-card"):
             st.markdown(st.session_state[explanation_key])
-
-        st.markdown("##### 離職リスクへの影響（ダイバージング・チャート）")
-        st.caption("赤：離職リスクを高めている要因　／　緑：定着に寄与している要因")
-        chart_rows = []
-        for _, row in factors.iterrows():
-            feature = row["feature"]
-            emp_val = row["employee_value"]
-            try:
-                avg = float(df[feature].mean())
-                val = float(emp_val)
-                pct = ((val - avg) / abs(avg)) * 100 if avg != 0 else 0.0
-            except (TypeError, ValueError):
-                pct = 0.0
-            risk_impact = pct * get_risk_direction(feature)
-            chart_rows.append({"要因": to_ja(feature), "リスクへの影響(%)": risk_impact})
-        chart_df = pd.DataFrame(chart_rows)
-        max_abs = max(chart_df["リスクへの影響(%)"].abs().max(), 1.0)
-
-        zero_rule = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color="#94a3b8").encode(x="x:Q")
-        factor_bars = (
-            alt.Chart(chart_df)
-            .mark_bar()
-            .encode(
-                x=alt.X(
-                    "リスクへの影響(%):Q",
-                    title="← 定着に寄与　｜　離職リスクを高める →",
-                    scale=alt.Scale(domain=[-max_abs, max_abs]),
-                ),
-                y=alt.Y("要因:N", sort="-x", title=None),
-                color=alt.Color(
-                    "リスクへの影響(%):Q",
-                    scale=alt.Scale(
-                        domain=[-max_abs, 0, max_abs],
-                        range=[RISK_TIER_COLOR["low"], "#e2e8f0", RISK_TIER_COLOR["high"]],
-                    ),
-                    legend=None,
-                ),
-                tooltip=["要因", alt.Tooltip("リスクへの影響(%):Q", format="+.1f")],
-            )
-            .properties(height=220)
-        )
-        st.altair_chart(zero_rule + factor_bars, use_container_width=True)
 
     st.subheader("定着施策の提案")
     if st.button("施策提案を実行"):
