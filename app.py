@@ -210,10 +210,14 @@ with tab1:
         x=alt.X("職種:N", title=None),
         y=alt.Y("部門:N", title=None),
     )
+    heatmap_max = max(heatmap_agg["平均リスク(%)"].max(), 1.0)
     heatmap_rect = heatmap_base.mark_rect().encode(
         color=alt.Color(
             "平均リスク(%):Q",
-            scale=alt.Scale(scheme="reds"),
+            scale=alt.Scale(
+                domain=[0, heatmap_max / 2, heatmap_max],
+                range=[RISK_TIER_COLOR["low"], RISK_TIER_COLOR["mid"], RISK_TIER_COLOR["high"]],
+            ),
             title="平均リスク(%)",
         ),
         tooltip=[
@@ -223,11 +227,8 @@ with tab1:
             alt.Tooltip("人数:Q", title="人数"),
         ],
     )
-    heatmap_text = heatmap_base.mark_text(baseline="middle", fontSize=12).encode(
+    heatmap_text = heatmap_base.mark_text(baseline="middle", fontSize=12, color="#1e293b").encode(
         text=alt.Text("平均リスク(%):Q", format=".0f"),
-        color=alt.condition(
-            alt.datum["平均リスク(%)"] > 55, alt.value("white"), alt.value("#1e293b")
-        ),
     )
     st.altair_chart(
         (heatmap_rect + heatmap_text).properties(height=200),
