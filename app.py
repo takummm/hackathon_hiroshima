@@ -386,43 +386,6 @@ with tab3:
 
     st.subheader("原因分析")
 
-    st.markdown("##### 個人の特徴量 vs 全体平均")
-    chart_rows = []
-    for _, row in factors.iterrows():
-        feature = row["feature"]
-        emp_val = row["employee_value"]
-        try:
-            avg = float(df[feature].mean())
-            val = float(emp_val)
-            pct = ((val - avg) / abs(avg)) * 100 if avg != 0 else 0.0
-        except (TypeError, ValueError):
-            pct = 0.0
-        color = get_factor_risk_color(feature, emp_val, df)
-        chart_rows.append(
-            {
-                "要因": to_ja(feature),
-                "平均との差(%)": pct,
-                "リスク度": {"high": "高", "mid": "中", "low": "低"}[color],
-            }
-        )
-    chart_df = pd.DataFrame(chart_rows)
-    factor_chart = (
-        alt.Chart(chart_df)
-        .mark_bar()
-        .encode(
-            x=alt.X("平均との差(%):Q", title="全体平均との差（%）"),
-            y=alt.Y("要因:N", sort="-x", title=None),
-            color=alt.Color(
-                "リスク度:N",
-                scale=alt.Scale(domain=["高", "中", "低"], range=["#ff6b7a", "#f0c063", "#6fe3a8"]),
-                legend=alt.Legend(title="リスク度"),
-            ),
-            tooltip=["要因", alt.Tooltip("平均との差(%):Q", format="+.1f"), "リスク度"],
-        )
-        .properties(height=220)
-    )
-    st.altair_chart(factor_chart, use_container_width=True)
-
     if st.button("原因分析を実行"):
         try:
             with st.spinner(f"{llm_model} が離職リスクの要因を分析しています…（数秒お待ちください）"):
@@ -436,6 +399,43 @@ with tab3:
         with st.container(border=True, key="explanation-card"):
             st.markdown(f'<span class="ai-output-tag">{llm_model} 生成</span>', unsafe_allow_html=True)
             st.markdown(st.session_state[explanation_key])
+
+        st.markdown("##### 個人の特徴量 vs 全体平均")
+        chart_rows = []
+        for _, row in factors.iterrows():
+            feature = row["feature"]
+            emp_val = row["employee_value"]
+            try:
+                avg = float(df[feature].mean())
+                val = float(emp_val)
+                pct = ((val - avg) / abs(avg)) * 100 if avg != 0 else 0.0
+            except (TypeError, ValueError):
+                pct = 0.0
+            color = get_factor_risk_color(feature, emp_val, df)
+            chart_rows.append(
+                {
+                    "要因": to_ja(feature),
+                    "平均との差(%)": pct,
+                    "リスク度": {"high": "高", "mid": "中", "low": "低"}[color],
+                }
+            )
+        chart_df = pd.DataFrame(chart_rows)
+        factor_chart = (
+            alt.Chart(chart_df)
+            .mark_bar()
+            .encode(
+                x=alt.X("平均との差(%):Q", title="全体平均との差（%）"),
+                y=alt.Y("要因:N", sort="-x", title=None),
+                color=alt.Color(
+                    "リスク度:N",
+                    scale=alt.Scale(domain=["高", "中", "低"], range=["#ff6b7a", "#f0c063", "#6fe3a8"]),
+                    legend=alt.Legend(title="リスク度"),
+                ),
+                tooltip=["要因", alt.Tooltip("平均との差(%):Q", format="+.1f"), "リスク度"],
+            )
+            .properties(height=220)
+        )
+        st.altair_chart(factor_chart, use_container_width=True)
 
     st.subheader("定着施策の提案")
     if st.button("施策提案を実行"):
