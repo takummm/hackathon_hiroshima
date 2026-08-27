@@ -12,40 +12,36 @@
 
 ## 動作環境
 
-- Windows / PowerShell
-- Python（`venv/` にセットアップ済みの環境を同梱）
+- Python 3.10以上（開発環境: 3.14.4）
+- Windows / Mac / Linux いずれでも動作可能
 
 ## セットアップ
 
-依存パッケージは `venv/` に導入済みです。未導入の環境で使う場合のみ、以下を実行してください。
-
-```powershell
-.\venv\Scripts\python.exe -m pip install -r requirements.txt
+```bash
+pip install -r requirements.txt
 ```
 
 ### Claude APIキーの設定
 
-プロジェクトルートに `.env` ファイルを作成し、以下を記載してください（`.env` は `.gitignore` 対象のため、リポジトリには含まれていません）。
+プロジェクトルートに `.env` ファイルを作成し、以下を記載してください。
 
 ```
 ANTHROPIC_API_KEY=sk-ant-xxxxxxxxxxxxxxxx
 ```
 
+`.env` ファイルは第三者と共有しないでください。
+
 ## アプリの起動
 
-```powershell
-.\venv\Scripts\python.exe -m streamlit run app.py
+```bash
+streamlit run app.py
 ```
 
 起動後、自動的にブラウザで `http://localhost:8501` が開きます。開かない場合は手動でアクセスしてください。
 
-> **注意**: `.\venv\Scripts\streamlit.exe run app.py` という起動方法は、環境によってはWindowsのアプリケーション制御ポリシーにブロックされることがあります。ブロックされる場合は上記の `python.exe -m streamlit run app.py` の形式を使ってください。
-
-終了する場合はターミナルで `Ctrl+C` を押してください。
-
 ## デモの使い方
 
-1. 「🎯 全体リスク一覧 & ターゲット選定」タブで、デモ用ショートカットボタンから従業員を選択
+1. 「全体リスク一覧 & ターゲット選定」タブで、デモ用ショートカットボタンから従業員を選択
    - 高リスクの例（#622／約99%）
    - 中リスクの例（#1203／約50%）
    - 低リスクの例（#1804／約0%）
