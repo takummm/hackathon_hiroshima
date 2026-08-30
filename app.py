@@ -206,8 +206,8 @@ with tab1:
     heatmap_agg["平均リスク(%)"] = (heatmap_agg["平均リスク"] * 100).round(1)
 
     heatmap_base = alt.Chart(heatmap_agg).encode(
-        x=alt.X("職種:N", title=None),
-        y=alt.Y("部門:N", title=None),
+        x=alt.X("部門:N", title=None, axis=alt.Axis(labelAngle=0, labelLimit=220)),
+        y=alt.Y("職種:N", title=None, axis=alt.Axis(labelLimit=220)),
     )
     heatmap_max = max(heatmap_agg["平均リスク(%)"].max(), 1.0)
     heatmap_rect = heatmap_base.mark_rect().encode(
@@ -230,7 +230,7 @@ with tab1:
         text=alt.Text("平均リスク(%):Q", format=".0f"),
     )
     st.altair_chart(
-        (heatmap_rect + heatmap_text).properties(height=200),
+        (heatmap_rect + heatmap_text).properties(height=340),
         use_container_width=True,
     )
 
@@ -370,7 +370,11 @@ with tab2:
         st.dataframe(factors_display, use_container_width=True, hide_index=True, height=210)
 
         st.markdown("##### 重要度グラフ")
-        st.bar_chart(factors_display.set_index("要因（日本語）")["重要度"], height=210)
+        st.bar_chart(
+            factors_display.set_index("要因（日本語）")["重要度"],
+            height=210,
+            horizontal=True,
+        )
 
 
 def build_employee_summary(row: pd.Series) -> str:

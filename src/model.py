@@ -168,8 +168,21 @@ def top_risk_factors_for_employee(
     model: lgb.LGBMClassifier, X_row: pd.DataFrame, top_n: int = 5
 ) -> pd.DataFrame:
     """モデル全体のfeature importance上位のうち、その従業員の値も併記して返す
-    （SHAP等は使わず、仕様書どおりfeature_importances_ベースの簡易表示）。"""
-    importance = get_feature_importance(model, X_row, top_n=top_n)
+    （SHAP等は使わず、仕様書どおりfeature_importances_ベースの簡易表示）。
+
+    日給・月収・月額レート・時給はいずれも給与水準を表す指標で、並べて表示すると
+    冗長で分かりにくいため「月収」に一本化する（重要度は給与関連の最大値を採用）。"""
+    full = get_feature_importance(model, X_row, top_n=len(X_row.columns))
+
+    salary_mask = full["feature"].isin(SALARY_FEATURES)
+    if salary_mask.sum() > 1:
+        salary_importance = float(full.loc[salary_mask, "importance"].max())
+        full = full.loc[~salary_mask]
+        rep = pd.DataFrame([{"feature": "MonthlyIncome", "importance": salary_importance}])
+        full = pd.concat([full, rep], ignore_index=True)
+        full = full.sort_values("importance", ascending=False)
+
+    importance = full.head(top_n).reset_index(drop=True)
     importance["employee_value"] = importance["feature"].apply(lambda f: X_row.iloc[0][f])
     return importance
 
