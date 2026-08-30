@@ -195,6 +195,15 @@ with tab1:
     with st.expander(f"元データ（CSV）を表示 — {DATA_PATH.name}（{len(df)}件）", expanded=False):
         st.dataframe(df.head(10), use_container_width=True)
 
+    # 将来構想の提示のみ（非機能）。入力・予測・AI分析には一切関与しない静的表示。
+    with st.expander("🔒 スマートリング入力（今後対応予定・現在未接続）", expanded=False):
+        st.caption("⏳ 現在この入力ソースは未接続です。リスク予測・AI分析には使用していません。")
+        st.markdown(
+            "将来的には、ウェアラブル端末（スマートリング等）から得られる"
+            "心拍・睡眠・ストレス等の客観的なバイタルデータも入力ソースとして"
+            "取り込む構想です。現在は未接続のため、リスク予測・AI分析には使用していません。"
+        )
+
     st.subheader("離職リスクの高い部門・職種")
     st.caption("どの部門・職種で離職リスクが高いかを確認できます。数値はAIによる平均予測リスクです。")
 
