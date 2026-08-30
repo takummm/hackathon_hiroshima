@@ -310,7 +310,7 @@ with tab2:
             )
         col2.metric(
             "判定",
-            "⚠️ 要注意" if is_high_risk else "OK",
+            "⚠️ 要注意" if is_high_risk else "問題なし",
             help="離職リスクスコアが30%を超えると「要注意」と判定します。離職の兆候をできるだけ早く察知するために設定した基準です。",
         )
         st.markdown("</div>", unsafe_allow_html=True)
