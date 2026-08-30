@@ -19,11 +19,10 @@ from model import (  # noqa: E402
     DATA_PATH,
     ID_COLS,
     friendly_data_error_message,
-    get_factor_risk_color,
     load_data,
     load_model,
+    risk_contributions_for_employee,
     score_employee,
-    top_risk_factors_for_employee,
     transform_with_encoders,
     validate_dataset,
 )
@@ -333,51 +332,70 @@ with tab2:
 
     with factors_col:
         st.subheader("主要リスク要因")
-        factors = top_risk_factors_for_employee(model, X_row, top_n=5)
-        factors_display = factors.copy()
-        factors_display.insert(0, "要因（日本語）", factors_display["feature"].apply(to_ja))
-        factors_display["この従業員の値"] = factors_display.apply(
+        factors = risk_contributions_for_employee(model, X_row, employee_row, df, top_n=6)
+
+        factors_view = factors.copy()
+        factors_view["要因"] = factors_view["feature"].apply(to_ja)
+        factors_view["値"] = factors_view.apply(
             lambda r: format_value(r["feature"], r["employee_value"]), axis=1
         )
-
-        def compute_pct_diff(row):
-            feature = row["feature"]
-            if feature not in df.columns:
-                return "（N/A）"
-            try:
-                avg = float(df[feature].mean())
-                val = float(row["employee_value"])
-                if avg == 0:
-                    return "（N/A）"
-                pct = ((val - avg) / abs(avg)) * 100
-                sign = "+" if pct > 0 else ""
-                return f"{sign}{pct:.0f}%"
-            except Exception:
-                return "（N/A）"
-
-        def compute_risk_badge(row):
-            try:
-                color = get_factor_risk_color(row["feature"], float(row["employee_value"]), df)
-                return RISK_TIER_BADGE.get(color, "⚪ 不明")
-            except Exception:
-                return "⚪ 不明"
-
-        factors_display["平均との比較"] = factors_display.apply(compute_pct_diff, axis=1)
-        factors_display["リスク度"] = factors_display.apply(compute_risk_badge, axis=1)
-
-        factors_display = factors_display.rename(
-            columns={"feature": "列名（英語）", "importance": "重要度"}
-        )[["要因（日本語）", "重要度", "この従業員の値", "平均との比較", "リスク度"]]
-
-        st.markdown("##### 主要リスク要因の詳細")
-        st.dataframe(factors_display, use_container_width=True, hide_index=True, height=210)
-
-        st.markdown("##### 重要度グラフ")
-        st.bar_chart(
-            factors_display.set_index("要因（日本語）")["重要度"],
-            height=210,
-            horizontal=True,
+        factors_view["方向"] = factors_view["contribution"].apply(
+            lambda c: "リスクを高める" if c > 0 else "リスクを下げる"
         )
+        factors_view["ラベル"] = factors_view["要因"] + "（" + factors_view["値"].astype(str) + "）"
+
+        def compute_avg_diff(row):
+            avg = row["company_avg"]
+            if avg is None or pd.isna(avg) or avg == 0:
+                return "—"
+            try:
+                pct = ((float(row["employee_value"]) - avg) / abs(avg)) * 100
+                return f"{'+' if pct > 0 else ''}{pct:.0f}%"
+            except (TypeError, ValueError):
+                return "—"
+
+        factors_view["全社平均"] = factors_view.apply(
+            lambda r: "—"
+            if r["company_avg"] is None or pd.isna(r["company_avg"])
+            else format_value(r["feature"], r["company_avg"]),
+            axis=1,
+        )
+        factors_view["平均との差"] = factors_view.apply(compute_avg_diff, axis=1)
+
+        st.markdown("##### 離職リスクへの影響")
+        st.caption("この従業員の各項目が、AIの離職リスク判定を高める方向（右・赤）／下げる方向（左・緑）にどれだけ効いているかを表します。")
+
+        chart_df = factors_view.sort_values("contribution")
+        bar_order = chart_df["ラベル"].tolist()
+        impact_bars = alt.Chart(chart_df).mark_bar().encode(
+            x=alt.X(
+                "contribution:Q",
+                title="◀ 定着に寄与　　離職リスクへの影響度　　リスクを高める ▶",
+                axis=alt.Axis(labels=False, ticks=False, grid=False),
+            ),
+            y=alt.Y("ラベル:N", sort=bar_order, title=None, axis=alt.Axis(labelLimit=260)),
+            color=alt.Color(
+                "方向:N",
+                scale=alt.Scale(
+                    domain=["リスクを高める", "リスクを下げる"],
+                    range=[RISK_TIER_COLOR["high"], RISK_TIER_COLOR["low"]],
+                ),
+                legend=alt.Legend(title=None, orient="top"),
+            ),
+            tooltip=[
+                alt.Tooltip("要因:N"),
+                alt.Tooltip("値:N", title="この従業員の値"),
+                alt.Tooltip("方向:N", title="影響"),
+            ],
+        )
+        zero_rule = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color="#94a3b8").encode(x="x:Q")
+        st.altair_chart((impact_bars + zero_rule).properties(height=260), use_container_width=True)
+
+        st.markdown("##### 数値の詳細（本人の値・全社平均との比較）")
+        table_df = factors_view.rename(columns={"値": "この従業員の値", "方向": "影響"})[
+            ["要因", "この従業員の値", "全社平均", "平均との差", "影響"]
+        ]
+        st.dataframe(table_df, use_container_width=True, hide_index=True, height=250)
 
 
 def build_employee_summary(row: pd.Series) -> str:
@@ -393,11 +411,16 @@ def build_employee_summary(row: pd.Series) -> str:
 
 
 def build_factors_text(factors_df: pd.DataFrame) -> str:
-    """LLMプロンプト用の主要リスク要因を日本語で構築する（理由はbuild_employee_summaryと同様）。"""
-    return "\n".join(
-        f"- {to_ja(r.feature)}: 重要度={r.importance}, 従業員の値={format_value(r.feature, r.employee_value)}"
-        for r in factors_df.itertuples()
-    )
+    """LLMプロンプト用の主要リスク要因を日本語で構築する（理由はbuild_employee_summaryと同様）。
+
+    contribution の符号で、その要因が離職リスクを高めているか下げているかを併記する。"""
+    lines = []
+    for r in factors_df.itertuples():
+        direction = "離職リスクを高める方向" if r.contribution > 0 else "定着に寄与する方向"
+        lines.append(
+            f"- {to_ja(r.feature)}: 従業員の値={format_value(r.feature, r.employee_value)}（{direction}）"
+        )
+    return "\n".join(lines)
 
 
 employee_summary = build_employee_summary(employee_row.iloc[0])

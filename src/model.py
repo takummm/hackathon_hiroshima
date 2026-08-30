@@ -187,6 +187,46 @@ def top_risk_factors_for_employee(
     return importance
 
 
+def risk_contributions_for_employee(
+    model: lgb.LGBMClassifier,
+    X_row: pd.DataFrame,
+    employee_row: pd.DataFrame,
+    dataset_df: pd.DataFrame,
+    top_n: int = 6,
+) -> pd.DataFrame:
+    """この従業員1名について、各特徴量が離職リスク予測をどれだけ押し上げ／
+    押し下げたかを返す（LightGBM組み込みのTreeSHAP: predict(pred_contrib=True)）。
+
+    - `contribution` > 0: 離職リスクを高める方向、< 0: 下げる方向（log-odds空間の寄与）
+    - モデルの学習・スコア算出ロジックは一切変更しない。推論APIの別出力を読むだけ。
+    - `employee_value` / `company_avg` は表示用に元データ（エンコード前）の値を用いる。
+    """
+    contrib = model.booster_.predict(X_row.values, pred_contrib=True)[0]
+    feature_contrib = contrib[:-1]  # 末尾要素はベース値なので除外
+
+    emp = employee_row.iloc[0]
+    rows = []
+    for feat, c in zip(X_row.columns, feature_contrib):
+        emp_val = emp[feat] if feat in emp.index else X_row.iloc[0][feat]
+        if feat in dataset_df.columns and pd.api.types.is_numeric_dtype(dataset_df[feat]):
+            company_avg = round(float(dataset_df[feat].mean()), 1)
+        else:
+            company_avg = None
+        rows.append(
+            {
+                "feature": feat,
+                "contribution": float(c),
+                "employee_value": emp_val,
+                "company_avg": company_avg,
+            }
+        )
+
+    out = pd.DataFrame(rows)
+    out["abs_contribution"] = out["contribution"].abs()
+    out = out.sort_values("abs_contribution", ascending=False).head(top_n)
+    return out.sort_values("contribution", ascending=False).reset_index(drop=True)
+
+
 # 給与関連は「低い」ほど危険
 SALARY_FEATURES = {"MonthlyIncome", "DailyRate", "HourlyRate", "MonthlyRate"}
 # 満足度系は「低い」ほど危険
