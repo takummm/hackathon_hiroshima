@@ -71,6 +71,17 @@ def _response_text(response: "anthropic.types.Message") -> str:
     return "".join(parts).strip()
 
 
+def format_risk_pct(risk_pct: float) -> str:
+    """プロンプト等に埋め込むリスクスコアの表示文字列。
+
+    ごく小さい非ゼロ値が `.1f%` 丸めで「0.0%」になり、LLMに「リスクゼロ」と
+    誤解されるのを防ぐ（表示側スコアカードと同じ扱い）。
+    """
+    if 0 < risk_pct < 0.1:
+        return "0.1%未満"
+    return f"{risk_pct:.1f}%"
+
+
 def get_risk_tier(risk_pct: float) -> str:
     """デモ用の3段階リスク区分。高:70%以上／中:30〜50%／低:10%以下（それ以外は中間扱い）。"""
     if risk_pct >= 70:
@@ -132,7 +143,7 @@ def explain_risk_factors(
 {employee_summary}
 
 # 離職リスクスコア
-{risk_pct:.1f}%
+{format_risk_pct(risk_pct)}
 
 # 主要リスク要因（feature importance上位、値が大きいほどモデルへの影響が大きい）
 {factors_text}
@@ -171,7 +182,7 @@ def suggest_interventions(
 箇条書きで提案してください。
 
 # 離職リスクスコア
-{risk_pct:.1f}%
+{format_risk_pct(risk_pct)}
 
 # 主要リスク要因
 {factors_text}
