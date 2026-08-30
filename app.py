@@ -39,6 +39,8 @@ from colors import RISK_TIER_COLOR  # noqa: E402
 
 # ライトテーマ（濃紺・ネイビー基調 + 青系アクセント）の配色・タイポグラフィ。
 RISK_TIER_BADGE = {"high": "🔴 高", "mid": "🟡 中", "low": "🟢 低"}
+# 既存のリスク区分（llm.get_risk_tier: 70%以上=high / 10%以下=low / それ以外=mid）に対応する表示ラベル。
+RISK_LEVEL_LABEL = {"high": "高リスク", "mid": "要注意", "low": "低リスク"}
 
 st.set_page_config(page_title="AI離職予防・人材定着支援", layout="wide")
 
@@ -193,67 +195,123 @@ with tab1:
     with st.expander(f"元データ（CSV）を表示 — {DATA_PATH.name}（{len(df)}件）", expanded=False):
         st.dataframe(df.head(10), use_container_width=True)
 
-    st.subheader("部署別リスクヒートマップ")
-    st.caption("部門×職種ごとの平均離職リスク。色が濃いほどリスクが高い組み合わせです。")
+    st.subheader("離職リスクの高い部門・職種")
+    st.caption("どの部門・職種で離職リスクが高いかを確認できます。数値はAIによる平均予測リスクです。")
 
-    heatmap_df = scored_df[["Department", "JobRole", "risk_score"]].copy()
-    heatmap_df["部門"] = heatmap_df["Department"].apply(lambda v: to_ja_value("Department", v))
-    heatmap_df["職種"] = heatmap_df["JobRole"].apply(lambda v: to_ja_value("JobRole", v))
-    heatmap_agg = heatmap_df.groupby(["部門", "職種"], as_index=False).agg(
+    rank_src = scored_df[["Department", "JobRole", "risk_score"]].copy()
+    rank_src["部門"] = rank_src["Department"].apply(lambda v: to_ja_value("Department", v))
+    rank_src["職種"] = rank_src["JobRole"].apply(lambda v: to_ja_value("JobRole", v))
+    rank_agg = rank_src.groupby(["部門", "職種"], as_index=False).agg(
         平均リスク=("risk_score", "mean"), 人数=("risk_score", "size")
     )
-    heatmap_agg["平均リスク(%)"] = (heatmap_agg["平均リスク"] * 100).round(1)
+    rank_agg = rank_agg.sort_values("平均リスク", ascending=False).reset_index(drop=True)
+    rank_agg["順位"] = rank_agg.index + 1
+    rank_agg["予測リスク"] = (rank_agg["平均リスク"] * 100).round(0).astype(int)
+    rank_agg["区分"] = rank_agg["平均リスク"].apply(lambda s: RISK_LEVEL_LABEL[get_risk_tier(s * 100)])
+    rank_agg["部門・職種"] = rank_agg["部門"] + "｜" + rank_agg["職種"]
+    rank_agg["表示"] = rank_agg.apply(
+        lambda r: f"{r['予測リスク']}%（{r['人数']}人）　{r['区分']}", axis=1
+    )
+    rank_agg["強調"] = rank_agg["順位"].apply(lambda n: "最重要" if n == 1 else "その他")
 
-    heatmap_base = alt.Chart(heatmap_agg).encode(
-        x=alt.X("部門:N", title=None, axis=alt.Axis(labelAngle=0, labelLimit=220)),
-        y=alt.Y("職種:N", title=None, axis=alt.Axis(labelLimit=220)),
-    )
-    heatmap_max = max(heatmap_agg["平均リスク(%)"].max(), 1.0)
-    heatmap_rect = heatmap_base.mark_rect().encode(
-        color=alt.Color(
-            "平均リスク(%):Q",
-            scale=alt.Scale(
-                domain=[0, heatmap_max / 2, heatmap_max],
-                range=[RISK_TIER_COLOR["low"], RISK_TIER_COLOR["mid"], RISK_TIER_COLOR["high"]],
+    st.markdown("**特に注意が必要な部門・職種**")
+    top3_cols = st.columns(3)
+    for tcol, (_, r) in zip(top3_cols, rank_agg.head(3).iterrows()):
+        tcol.metric(f"{r['順位']}位　{r['部門']}｜{r['職種']}", f"{r['予測リスク']}%")
+        tcol.caption(f"対象 {r['人数']}人 ・ {r['区分']}")
+
+    order = rank_agg["部門・職種"].tolist()
+    # バー右側にラベル（「50%（83人）　要注意」）を置くため、最大値の約2倍を軸上限にする。
+    x_max = max(int(rank_agg["予測リスク"].max()) * 2, 12)
+    pick = alt.selection_point(name="pick", fields=["部門", "職種"], on="click", empty=False)
+    rank_bars = (
+        alt.Chart(rank_agg)
+        .mark_bar()
+        .encode(
+            y=alt.Y("部門・職種:N", sort=order, title=None, axis=alt.Axis(labelLimit=260)),
+            x=alt.X(
+                "予測リスク:Q",
+                title=None,
+                axis=None,
+                scale=alt.Scale(domain=[0, x_max]),
             ),
-            title="平均リスク(%)",
-        ),
-        tooltip=[
-            "部門",
-            "職種",
-            alt.Tooltip("平均リスク(%):Q", format=".1f"),
-            alt.Tooltip("人数:Q", title="人数"),
-        ],
+            color=alt.Color(
+                "強調:N",
+                scale=alt.Scale(domain=["最重要", "その他"], range=["#1e3a8a", "#bfdbfe"]),
+                legend=None,
+            ),
+            tooltip=[
+                alt.Tooltip("部門:N"),
+                alt.Tooltip("職種:N"),
+                alt.Tooltip("予測リスク:Q", title="平均予測リスク(%)"),
+                alt.Tooltip("人数:Q", title="対象人数"),
+                alt.Tooltip("区分:N"),
+            ],
+        )
     )
-    heatmap_text = heatmap_base.mark_text(baseline="middle", fontSize=12, color="#1e293b").encode(
-        text=alt.Text("平均リスク(%):Q", format=".0f"),
+    rank_labels = (
+        alt.Chart(rank_agg)
+        .mark_text(align="left", baseline="middle", dx=5, fontSize=12, color="#1e293b")
+        .encode(
+            y=alt.Y("部門・職種:N", sort=order),
+            x=alt.X("予測リスク:Q"),
+            text="表示:N",
+        )
     )
-    st.altair_chart(
-        (heatmap_rect + heatmap_text).properties(height=340),
+    rank_chart = alt.layer(rank_bars, rank_labels).add_params(pick).properties(
+        height=max(len(rank_agg) * 34, 120)
+    )
+    rank_event = st.altair_chart(
+        rank_chart,
         use_container_width=True,
+        on_select="rerun",
+        key="risk_rank_chart",
+    )
+
+    picked_rows = []
+    try:
+        picked_rows = (rank_event or {}).get("selection", {}).get("pick", []) or []
+    except AttributeError:
+        picked_rows = []
+    group_filter = (
+        (str(picked_rows[0]["部門"]), str(picked_rows[0]["職種"])) if picked_rows else None
     )
 
     st.subheader("組織全体のリスク一覧")
-    st.caption("離職リスクスコアが高い順に表示しています。検索・列並び替えが可能です。")
 
     org_table = scored_df[["EmployeeNumber", "Department", "JobRole", "risk_score"]].copy()
     org_table = org_table.sort_values("risk_score", ascending=False).reset_index(drop=True)
-    org_table["Department"] = org_table["Department"].apply(lambda v: to_ja_value("Department", v))
-    org_table["JobRole"] = org_table["JobRole"].apply(lambda v: to_ja_value("JobRole", v))
-    org_table["リスクスコア"] = (org_table["risk_score"] * 100).round(1).astype(str) + "%"
-    org_table["リスク度"] = org_table["risk_score"].apply(
+    org_table["部門"] = org_table["Department"].apply(lambda v: to_ja_value("Department", v))
+    org_table["職種"] = org_table["JobRole"].apply(lambda v: to_ja_value("JobRole", v))
+
+    if group_filter:
+        dept_j, role_j = group_filter
+        org_view = org_table[(org_table["部門"] == dept_j) & (org_table["職種"] == role_j)]
+        st.caption(
+            f"「{dept_j}｜{role_j}」の従業員 {len(org_view)}人 を表示中"
+            "（上のランキングでもう一度クリックすると全体表示に戻ります）"
+        )
+    else:
+        org_view = org_table
+        st.caption(
+            "離職リスクスコアが高い順。上のランキングをクリックすると、"
+            "その部門・職種の従業員だけに絞り込めます。"
+        )
+
+    org_view = org_view.copy()
+    org_view["リスクスコア"] = (org_view["risk_score"] * 100).round(1).astype(str) + "%"
+    org_view["リスク度"] = org_view["risk_score"].apply(
         lambda s: RISK_TIER_BADGE[get_risk_tier(s * 100)]
     )
-    org_table_display = org_table.rename(
-        columns={"EmployeeNumber": "従業員番号", "Department": "部門", "JobRole": "職種"}
-    )[["従業員番号", "部門", "職種", "リスクスコア", "リスク度"]]
+    org_table_display = org_view.rename(columns={"EmployeeNumber": "従業員番号"})[
+        ["従業員番号", "部門", "職種", "リスクスコア", "リスク度"]
+    ]
     st.dataframe(org_table_display, use_container_width=True, hide_index=True, height=320)
 
-    high_count = int((scored_df["risk_score"] * 100 >= 70).sum())
-    mid_count = int(
-        ((scored_df["risk_score"] * 100 < 70) & (scored_df["risk_score"] * 100 > 10)).sum()
-    )
-    low_count = int((scored_df["risk_score"] * 100 <= 10).sum())
+    view_pct = org_view["risk_score"] * 100
+    high_count = int((view_pct >= 70).sum())
+    mid_count = int(((view_pct < 70) & (view_pct > 10)).sum())
+    low_count = int((view_pct <= 10).sum())
     m1, m2, m3 = st.columns(3)
     m1.metric("🔴 高リスク", f"{high_count}名")
     m2.metric("🟡 中リスク", f"{mid_count}名")
