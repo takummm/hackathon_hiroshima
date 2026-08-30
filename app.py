@@ -363,16 +363,21 @@ with tab2:
         factors_view["平均との差"] = factors_view.apply(compute_avg_diff, axis=1)
 
         st.markdown("##### 離職リスクへの影響")
-        st.caption("この従業員の各項目が、AIの離職リスク判定を高める方向（右・赤）／下げる方向（左・緑）にどれだけ効いているかを表します。")
+
+        # モデルが算出した寄与度(log-odds空間)そのままだと目盛りの数値が直感的でないため、
+        # 最大の影響度を100とした相対スケールに正規化して表示する（符号＝方向は保持）。
+        max_abs = factors_view["contribution"].abs().max() or 1.0
+        factors_view["影響度"] = (factors_view["contribution"] / max_abs * 100).round(1)
 
         chart_df = factors_view.sort_values("contribution")
         bar_order = chart_df["ラベル"].tolist()
+        has_both_directions = (
+            bool((chart_df["contribution"] > 0).any())
+            and bool((chart_df["contribution"] < 0).any())
+        )
+
         impact_bars = alt.Chart(chart_df).mark_bar().encode(
-            x=alt.X(
-                "contribution:Q",
-                title="◀ 定着に寄与　　離職リスクへの影響度　　リスクを高める ▶",
-                axis=alt.Axis(labels=False, ticks=False, grid=False),
-            ),
+            x=alt.X("影響度:Q", title="離職リスクへの影響度"),
             y=alt.Y("ラベル:N", sort=bar_order, title=None, axis=alt.Axis(labelLimit=260)),
             color=alt.Color(
                 "方向:N",
@@ -380,20 +385,20 @@ with tab2:
                     domain=["リスクを高める", "リスクを下げる"],
                     range=[RISK_TIER_COLOR["high"], RISK_TIER_COLOR["low"]],
                 ),
-                legend=alt.Legend(title=None, orient="top"),
+                legend=alt.Legend(title=None, orient="top") if has_both_directions else None,
             ),
             tooltip=[
                 alt.Tooltip("要因:N"),
                 alt.Tooltip("値:N", title="この従業員の値"),
-                alt.Tooltip("方向:N", title="影響"),
+                alt.Tooltip("影響度:Q", title="影響度"),
             ],
         )
         zero_rule = alt.Chart(pd.DataFrame({"x": [0]})).mark_rule(color="#94a3b8").encode(x="x:Q")
         st.altair_chart((impact_bars + zero_rule).properties(height=260), use_container_width=True)
 
-        st.markdown("##### 数値の詳細（本人の値・全社平均との比較）")
-        table_df = factors_view.rename(columns={"値": "この従業員の値", "方向": "影響"})[
-            ["要因", "この従業員の値", "全社平均", "平均との差", "影響"]
+        st.markdown("##### 本人と全社平均の比較")
+        table_df = factors_view.rename(columns={"値": "この従業員の値"})[
+            ["要因", "この従業員の値", "全社平均", "平均との差"]
         ]
         st.dataframe(table_df, use_container_width=True, hide_index=True, height=250)
 
