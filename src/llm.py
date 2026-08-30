@@ -57,6 +57,16 @@ def friendly_error_message(e: Exception) -> str:
     return "予期しないエラーが発生しました。時間をおいて再度お試しください。"
 
 
+def _response_text(response: "anthropic.types.Message") -> str:
+    """APIレスポンスからテキストのみを結合して返す。
+
+    Sonnet 5 などは content の先頭に ThinkingBlock（.text を持たない）を返すことが
+    あるため、content[0].text を直接参照せず text ブロックだけを取り出す。
+    """
+    parts = [block.text for block in response.content if getattr(block, "type", None) == "text"]
+    return "".join(parts).strip()
+
+
 def get_risk_tier(risk_pct: float) -> str:
     """デモ用の3段階リスク区分。高:70%以上／中:30〜50%／低:10%以下（それ以外は中間扱い）。"""
     if risk_pct >= 70:
@@ -138,7 +148,7 @@ def explain_risk_factors(
         max_tokens=400,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.content[0].text
+    return _response_text(response)
 
 
 def suggest_interventions(
@@ -181,4 +191,4 @@ def suggest_interventions(
         max_tokens=500,
         messages=[{"role": "user", "content": prompt}],
     )
-    return response.content[0].text
+    return _response_text(response)
