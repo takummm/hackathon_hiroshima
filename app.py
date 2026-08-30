@@ -76,7 +76,7 @@ FONT_AND_COLOR_CSS = (
     "  color: var(--accent); font-size: 0.78rem; font-weight: 600; letter-spacing: 0.03em; margin-bottom: 4px;"
     "}"
     ".app-title { font-size: 2rem; font-weight: 800; letter-spacing: -0.02em; color: var(--navy); margin-bottom: 6px; }"
-    ".app-desc { color: var(--text-dim); font-size: 0.95rem; max-width: 62ch; line-height: 1.7; margin-bottom: 1.6rem; }"
+    ".app-desc { color: var(--text-dim); font-size: 0.95rem; line-height: 1.7; margin-bottom: 1.6rem; white-space: nowrap; }"
     ".tech-badge {"
     "  display: inline-block; font-size: 0.72rem; font-weight: 600;"
     "  color: #1d4ed8; background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.2);"
