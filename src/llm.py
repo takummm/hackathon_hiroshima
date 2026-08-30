@@ -23,6 +23,10 @@ POLICIES_PATH = Path(__file__).resolve().parent.parent / "data" / "company_polic
 MODEL_DEV = "claude-haiku-4-5-20251001"
 MODEL_PROD = "claude-sonnet-5"
 
+# Sonnet 5 は既定で thinking ブロックを返し、その思考トークンが max_tokens を圧迫して
+# 回答が途中で切れることがある。本用途（短い定型の日本語文）では思考は不要なので無効化する。
+_THINKING_DISABLED = {"type": "disabled"}
+
 _client: anthropic.Anthropic | None = None
 
 
@@ -145,7 +149,8 @@ def explain_risk_factors(
     client = get_client()
     response = client.messages.create(
         model=model,
-        max_tokens=400,
+        max_tokens=700,
+        thinking=_THINKING_DISABLED,
         messages=[{"role": "user", "content": prompt}],
     )
     return _response_text(response)
@@ -188,7 +193,8 @@ def suggest_interventions(
     client = get_client()
     response = client.messages.create(
         model=model,
-        max_tokens=500,
+        max_tokens=900,
+        thinking=_THINKING_DISABLED,
         messages=[{"role": "user", "content": prompt}],
     )
     return _response_text(response)
