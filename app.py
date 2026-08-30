@@ -383,7 +383,9 @@ with tab2:
                 "方向:N",
                 scale=alt.Scale(
                     domain=["リスクを高める", "リスクを下げる"],
-                    range=[RISK_TIER_COLOR["high"], RISK_TIER_COLOR["low"]],
+                    # UIのアクセント（青系）に合わせ、赤の主張を抑えた控えめな配色にする。
+                    # リスクを高める＝濃いネイビー、下げる＝淡いブルー。
+                    range=["#1e3a8a", "#93c5fd"],
                 ),
                 legend=alt.Legend(title=None, orient="top") if has_both_directions else None,
             ),
