@@ -169,24 +169,6 @@ def get_scored_employees() -> pd.DataFrame:
 scored_df = get_scored_employees()
 
 
-def pick_demo_employees(scored: pd.DataFrame) -> dict:
-    """デモ用に高・中・低リスクの従業員を1名ずつ選定する（data/demo_scenarios.txtと同じロジック）。"""
-    high = scored.loc[scored["risk_score"].idxmax()]
-    low = scored.loc[scored["risk_score"].idxmin()]
-    mid_range = scored[(scored["risk_score"] >= 0.40) & (scored["risk_score"] <= 0.60)]
-    if mid_range.empty:
-        mid_range = scored
-    mid = mid_range.iloc[(mid_range["risk_score"] - 0.5).abs().argsort().iloc[0]]
-
-    return {
-        "高リスク": int(high["EmployeeNumber"]),
-        "中リスク": int(mid["EmployeeNumber"]),
-        "低リスク": int(low["EmployeeNumber"]),
-    }
-
-
-demo_employees = pick_demo_employees(scored_df)
-
 tab1, tab2, tab3 = st.tabs(
     ["全体リスク一覧", "個別詳細カルテ", "AIによる提案"]
 )
@@ -329,11 +311,7 @@ with tab1:
 # --- ターゲット選定（個別詳細カルテの先頭に配置。selected_id を②③タブで使用） ---
 with tab2:
     st.subheader("ターゲット選定")
-    st.caption("デモ用ショートカット（高・中・低リスクの代表例）")
-    demo_cols = st.columns(3)
-    for demo_col, (demo_label, demo_emp_id) in zip(demo_cols, demo_employees.items()):
-        if demo_col.button(f"{demo_label}の例（#{demo_emp_id}）"):
-            st.session_state["employee_select"] = demo_emp_id
+    st.caption("詳細を確認したい従業員を選択してください。")
 
     employee_ids = df["EmployeeNumber"].tolist()
     selected_id = st.selectbox("EmployeeNumber", employee_ids, key="employee_select")
