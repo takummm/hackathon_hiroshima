@@ -294,8 +294,8 @@ with tab1:
     org_view["リスク度"] = org_view["risk_score"].apply(
         lambda s: RISK_TIER_BADGE[get_risk_tier(s * 100)]
     )
-    org_table_display = org_view.rename(columns={"EmployeeNumber": "従業員番号"})[
-        ["従業員番号", "部門", "職種", "リスクスコア", "リスク度"]
+    org_table_display = org_view.rename(columns={"EmployeeNumber": "社員番号"})[
+        ["社員番号", "部門", "職種", "リスクスコア", "リスク度"]
     ]
     st.dataframe(org_table_display, use_container_width=True, hide_index=True, height=320)
 
@@ -314,7 +314,7 @@ with tab2:
     st.caption("詳細を確認したい従業員を選択してください。")
 
     employee_ids = df["EmployeeNumber"].tolist()
-    selected_id = st.selectbox("EmployeeNumber", employee_ids, key="employee_select")
+    selected_id = st.selectbox("社員番号", employee_ids, key="employee_select")
     st.divider()
 
 # --- ここから選択中の従業員に対する分析（②③タブで使用） ---
