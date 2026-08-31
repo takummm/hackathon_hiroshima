@@ -326,7 +326,8 @@ with tab1:
     m2.metric("🟡 中リスク", f"{mid_count}名")
     m3.metric("🟢 低リスク", f"{low_count}名")
 
-    st.divider()
+# --- ターゲット選定（個別詳細カルテの先頭に配置。selected_id を②③タブで使用） ---
+with tab2:
     st.subheader("ターゲット選定")
     st.caption("デモ用ショートカット（高・中・低リスクの代表例）")
     demo_cols = st.columns(3)
@@ -336,6 +337,7 @@ with tab1:
 
     employee_ids = df["EmployeeNumber"].tolist()
     selected_id = st.selectbox("EmployeeNumber", employee_ids, key="employee_select")
+    st.divider()
 
 # --- ここから選択中の従業員に対する分析（②③タブで使用） ---
 employee_row = df[df["EmployeeNumber"] == selected_id]
@@ -352,7 +354,7 @@ risk_tier = get_risk_tier(risk_proba * 100)
 risk_color = RISK_TIER_COLOR[risk_tier]
 
 with tab2:
-    st.caption(f"選択中の従業員: **#{selected_id}**（タブ1で変更できます）")
+    st.caption(f"選択中の従業員: **#{selected_id}**")
 
     st.subheader("リスク分析結果")
     # ごく小さい非ゼロのスコアが .1% 丸めで「0.0%」と表示され、
@@ -515,7 +517,7 @@ explanation_key = f"explanation_{selected_id}"
 interventions_key = f"interventions_{selected_id}"
 
 with tab3:
-    st.caption(f"選択中の従業員: **#{selected_id}**（タブ1で変更できます）")
+    st.caption(f"選択中の従業員: **#{selected_id}**")
 
     st.subheader("原因分析")
 
