@@ -41,7 +41,11 @@ RISK_TIER_BADGE = {"high": "🔴 高", "mid": "🟡 中", "low": "🟢 低"}
 # 既存のリスク区分（llm.get_risk_tier: 70%以上=high / 10%以下=low / それ以外=mid）に対応する表示ラベル。
 RISK_LEVEL_LABEL = {"high": "高リスク", "mid": "要注意", "low": "低リスク"}
 
-st.set_page_config(page_title="AI離職予防・人材定着支援", layout="wide")
+st.set_page_config(
+    page_title="AI離職予防・人材定着支援",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 FONT_AND_COLOR_CSS = (
     '<link rel="preconnect" href="https://fonts.googleapis.com">'
@@ -97,6 +101,8 @@ FONT_AND_COLOR_CSS = (
     ".stButton button:hover { border-color: var(--accent) !important; color: var(--accent) !important; }"
     '.stTabs [data-baseweb="tab-list"] { gap: 4px; }'
     '.stTabs [data-baseweb="tab"] { font-weight: 600 !important; }'
+    'section[data-testid="stSidebar"] { display: none !important; }'
+    'button[data-testid="stSidebarCollapsedControl"] { display: none !important; }'
     "</style>"
 )
 st.markdown(FONT_AND_COLOR_CSS, unsafe_allow_html=True)
@@ -110,16 +116,6 @@ st.markdown(
 )
 
 llm_model = MODEL_DEV
-
-with st.sidebar:
-    st.markdown(
-        '<div style="padding-top:0.5rem;">'
-        '<span class="tech-badge">LightGBM</span>'
-        '<span class="tech-badge">Claude API</span>'
-        '<span class="tech-badge">Streamlit</span>'
-        "</div>",
-        unsafe_allow_html=True,
-    )
 
 
 @st.cache_resource(show_spinner="学習済みモデルを読み込んでいます…")
