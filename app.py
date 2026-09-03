@@ -28,7 +28,6 @@ from model import (  # noqa: E402
 )
 from llm import (  # noqa: E402
     MODEL_DEV,
-    MODEL_PROD,
     explain_risk_factors,
     friendly_error_message,
     get_risk_tier,
@@ -110,13 +109,11 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+llm_model = MODEL_DEV
+
 with st.sidebar:
-    st.subheader("LLM設定")
-    is_prod_mode = st.toggle("デモ本番モード（Sonnet 5使用）", value=False)
-    llm_model = MODEL_PROD if is_prod_mode else MODEL_DEV
-    st.caption(f"使用モデル: {llm_model}")
     st.markdown(
-        '<div style="margin-top:1.8rem;padding-top:1rem;border-top:1px solid #e2e8f0;">'
+        '<div style="padding-top:0.5rem;">'
         '<span class="tech-badge">LightGBM</span>'
         '<span class="tech-badge">Claude API</span>'
         '<span class="tech-badge">Streamlit</span>'
