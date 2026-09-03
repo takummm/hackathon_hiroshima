@@ -494,7 +494,7 @@ with tab3:
 
     if st.button("原因分析を実行"):
         try:
-            with st.spinner(f"{llm_model} が離職リスクの要因を分析しています…（数秒お待ちください）"):
+            with st.spinner("離職リスクの要因を分析しています…（数秒お待ちください）"):
                 st.session_state[explanation_key] = cached_explain(
                     selected_id, risk_proba * 100, factors_text, employee_summary, llm_model
                 )
